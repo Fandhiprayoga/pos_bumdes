@@ -34,6 +34,16 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     $routes->get('profile', 'ProfileController::index');
     $routes->post('profile/update', 'ProfileController::update');
 
+    // POS Routes
+    $routes->get('pos', 'PosController::index', ['filter' => 'permission:sales.create']);
+    $routes->post('pos/open-shift', 'PosController::openShift', ['filter' => 'permission:shifts.open']);
+    $routes->post('pos/checkout', 'PosController::checkout', ['filter' => 'permission:sales.create']);
+    $routes->post('pos/close-shift', 'PosController::closeShift', ['filter' => 'permission:shifts.close']);
+    $routes->get('pos/history', 'PosController::history', ['filter' => 'permission:sales.list']);
+
+    // Reports
+    $routes->get('reports/sales-daily', 'SalesReportController::daily', ['filter' => 'permission:reports.view']);
+
     // ---------------------------------------------------------------
     // Admin Routes (require admin.access permission)
     // ---------------------------------------------------------------
@@ -66,6 +76,34 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
             $routes->post('update/mail', 'SettingController::updateMail');
             $routes->post('test-email', 'SettingController::testEmail');
             $routes->post('reset', 'SettingController::resetDefaults');
+        });
+
+        // Product Management
+        $routes->group('products', static function ($routes) {
+            $routes->get('/', 'ProductController::index', ['filter' => 'permission:products.list']);
+            $routes->get('data', 'ProductController::data', ['filter' => 'permission:products.list']);
+            $routes->get('scan', 'ProductController::scanPage', ['filter' => 'permission:products.stock-in']);
+            $routes->get('mwa-history', 'ProductController::mwaHistory', ['filter' => 'permission:products.list']);
+            $routes->get('mwa-history/data', 'ProductController::mwaHistoryData', ['filter' => 'permission:products.list']);
+            $routes->get('create', 'ProductController::create', ['filter' => 'permission:products.create']);
+            $routes->post('store', 'ProductController::store', ['filter' => 'permission:products.create']);
+            $routes->get('edit/(:num)', 'ProductController::edit/$1', ['filter' => 'permission:products.edit']);
+            $routes->post('update/(:num)', 'ProductController::update/$1', ['filter' => 'permission:products.edit']);
+            $routes->post('stock-in/(:num)', 'ProductController::stockIn/$1', ['filter' => 'permission:products.stock-in']);
+            $routes->post('scan-flow', 'ProductController::scanFlow', ['filter' => 'permission:products.stock-in']);
+        });
+
+        // Product Master Data
+        $routes->group('master-data', static function ($routes) {
+            $routes->get('categories', 'ProductCategoryController::index', ['filter' => 'permission:masters.categories.list']);
+            $routes->get('categories/data', 'ProductCategoryController::data', ['filter' => 'permission:masters.categories.list']);
+            $routes->post('categories/store', 'ProductCategoryController::store', ['filter' => 'permission:masters.categories.create']);
+            $routes->post('categories/update/(:num)', 'ProductCategoryController::update/$1', ['filter' => 'permission:masters.categories.edit']);
+
+            $routes->get('units', 'ProductUnitController::index', ['filter' => 'permission:masters.units.list']);
+            $routes->get('units/data', 'ProductUnitController::data', ['filter' => 'permission:masters.units.list']);
+            $routes->post('units/store', 'ProductUnitController::store', ['filter' => 'permission:masters.units.create']);
+            $routes->post('units/update/(:num)', 'ProductUnitController::update/$1', ['filter' => 'permission:masters.units.edit']);
         });
     });
 });

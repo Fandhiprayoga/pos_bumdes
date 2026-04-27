@@ -35,6 +35,12 @@ class UserSeeder extends Seeder
                 'group'    => 'manager',
             ],
             [
+                'username' => 'cashier',
+                'email'    => 'cashier@example.com',
+                'password' => 'password123',
+                'group'    => 'cashier',
+            ],
+            [
                 'username' => 'user',
                 'email'    => 'user@example.com',
                 'password' => 'password123',
@@ -43,6 +49,17 @@ class UserSeeder extends Seeder
         ];
 
         foreach ($defaultUsers as $userData) {
+            $existingUser = $users->findByCredentials(['email' => $userData['email']]);
+
+            if ($existingUser !== null) {
+                if (! $existingUser->inGroup($userData['group'])) {
+                    $existingUser->addGroup($userData['group']);
+                }
+
+                echo "User '{$userData['username']}' sudah ada, dilewati.\n";
+                continue;
+            }
+
             // Buat user entity
             $user = new User([
                 'username' => $userData['username'],
@@ -67,6 +84,7 @@ class UserSeeder extends Seeder
         echo "Super Admin : superadmin@example.com / password123\n";
         echo "Admin       : admin@example.com / password123\n";
         echo "Manager     : manager@example.com / password123\n";
+        echo "Cashier     : cashier@example.com / password123\n";
         echo "User        : user@example.com / password123\n";
         echo "=================================\n";
     }

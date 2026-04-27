@@ -7,7 +7,11 @@
 
 /* Fix modal backdrop z-index for Stisla template */
 .modal-backdrop {
-  z-index: 9998 !important;
+  z-index: 1040 !important;
+}
+
+.modal {
+  z-index: 1050 !important;
 }
 
 /*# sourceMappingURL=custom.css.map */

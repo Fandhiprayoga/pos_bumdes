@@ -14,6 +14,10 @@ Boilerplate project CodeIgniter 4 dengan **CodeIgniter Shield** untuk autentikas
 - ✅ Filter berdasarkan Role dan Permission
 - ✅ Dynamic Sidebar berdasarkan permission user
 
+## Dokumentasi Tambahan
+
+- POS MVP untuk BUMDes: lihat `docs/POS_MVP.md`
+
 ## Roles Default
 
 | Role | Deskripsi |
@@ -63,7 +67,7 @@ php spark migrate --all
 ### 6. Jalankan Seeder
 
 ```bash
-php spark db:seed UserSeeder
+php spark db:seed DatabaseSeeder
 ```
 
 ### 7. Jalankan Server
@@ -102,7 +106,9 @@ app/
 │   └── SettingController.php
 ├── Database/
 │   └── Seeds/
-│       └── UserSeeder.php    # Seeder user default
+│       ├── DatabaseSeeder.php      # Seeder utama setup awal
+│       ├── ProductMasterSeeder.php # Seeder kategori & satuan default
+│       └── UserSeeder.php          # Seeder user default
 ├── Filters/
 │   ├── RoleFilter.php        # Filter berdasarkan role
 │   └── PermissionFilter.php  # Filter berdasarkan permission

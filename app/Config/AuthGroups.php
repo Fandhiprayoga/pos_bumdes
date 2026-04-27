@@ -33,6 +33,10 @@ class AuthGroups extends ShieldAuthGroups
             'title'       => 'Manager',
             'description' => 'Manajer yang dapat melihat laporan dan mengelola data.',
         ],
+        'cashier' => [
+            'title'       => 'Kasir',
+            'description' => 'Petugas kasir untuk operasional penjualan harian.',
+        ],
         'user' => [
             'title'       => 'User',
             'description' => 'Pengguna umum dengan akses terbatas.',
@@ -69,6 +73,28 @@ class AuthGroups extends ShieldAuthGroups
         // Reports
         'reports.view'        => 'Dapat melihat laporan',
         'reports.export'      => 'Dapat mengekspor laporan',
+
+        // Product management
+        'products.list'       => 'Dapat melihat daftar produk',
+        'products.create'     => 'Dapat menambah produk',
+        'products.edit'       => 'Dapat mengubah produk',
+        'products.stock-in'   => 'Dapat menambah stok produk',
+
+        // Product master data
+        'masters.categories.list'   => 'Dapat melihat master kategori barang',
+        'masters.categories.create' => 'Dapat menambah master kategori barang',
+        'masters.categories.edit'   => 'Dapat mengubah master kategori barang',
+        'masters.units.list'        => 'Dapat melihat master satuan barang',
+        'masters.units.create'      => 'Dapat menambah master satuan barang',
+        'masters.units.edit'        => 'Dapat mengubah master satuan barang',
+
+        // POS sales
+        'sales.create'        => 'Dapat melakukan transaksi penjualan',
+        'sales.list'          => 'Dapat melihat riwayat penjualan',
+
+        // Cash shift
+        'shifts.open'         => 'Dapat membuka shift kas',
+        'shifts.close'        => 'Dapat menutup shift kas',
     ];
 
     /**
@@ -83,6 +109,10 @@ class AuthGroups extends ShieldAuthGroups
             'roles.*',
             'dashboard.*',
             'reports.*',
+            'products.*',
+            'masters.*',
+            'sales.*',
+            'shifts.*',
         ],
         'admin' => [
             'admin.access',
@@ -92,12 +122,26 @@ class AuthGroups extends ShieldAuthGroups
             'users.delete',
             'dashboard.*',
             'reports.*',
+            'products.*',
+            'masters.*',
+            'sales.*',
+            'shifts.*',
         ],
         'manager' => [
             'admin.access',
             'users.list',
             'dashboard.*',
-            'reports.*',
+            'reports.view',
+            'sales.list',
+            'products.list',
+        ],
+        'cashier' => [
+            'dashboard.access',
+            'sales.create',
+            'sales.list',
+            'shifts.open',
+            'shifts.close',
+            'products.list',
         ],
         'user' => [
             'dashboard.access',

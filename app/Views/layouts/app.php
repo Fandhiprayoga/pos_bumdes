@@ -49,7 +49,7 @@
   </style>
 </head>
 
-<body>
+<body class="sidebar-mini">
   <div id="app">
     <div class="main-wrapper">
       <div class="navbar-bg"></div>
