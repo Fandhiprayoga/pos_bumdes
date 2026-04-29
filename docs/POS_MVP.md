@@ -1,67 +1,84 @@
 # POS BUMDes MVP
 
-Dokumen ini menjelaskan implementasi modul POS MVP yang sudah ditambahkan ke project.
+Dokumen ini merangkum apa saja yang sudah benar-benar dikerjakan dan tersedia di codebase untuk modul POS MVP.
 
-## Modul yang Diimplementasikan
+## Status Implementasi Saat Ini
 
-1. Manajemen Produk
-- CRUD produk
-- Master kategori barang
-- Master satuan barang
-- Stok minimum
-- Stok masuk manual
-- Status produk aktif/nonaktif
-- Seeder produk contoh untuk testing cepat
+### 1. Master Produk dan Inventori
+- CRUD produk sudah tersedia.
+- Master kategori produk sudah tersedia dengan tabel terpisah.
+- Master satuan produk sudah tersedia dengan tabel terpisah.
+- Produk mendukung SKU, kategori, satuan, harga beli, harga jual, stok, stok minimum, dan status aktif/nonaktif.
+- Stok masuk manual dari halaman daftar produk sudah tersedia.
+- Penyesuaian stok dari halaman edit produk sudah tersedia dan tercatat sebagai mutasi `adjustment`.
+- Alur cepat scan barang sudah tersedia untuk 2 skenario:
+  - produk lama: tambah stok + hitung ulang rata-rata harga beli
+  - produk baru: buat produk baru langsung dari hasil scan
+- Histori mutasi stok sudah tersedia dengan filter tanggal, produk, dan tipe mutasi.
+- Ringkasan mutasi stok sudah tersedia, termasuk total stock in, total sale, dan delta rata-rata modal.
 
-2. POS Kasir
-- Buka shift kas
-- Transaksi penjualan multi item
-- Tambah item cepat via scan barcode SKU atau cari nama barang
-- Metode bayar tunai/transfer
-- Diskon nominal
-- Hitung kembalian
-- Tutup shift kas dan hitung selisih
-- Seeder transaksi dummy untuk demo riwayat dan laporan
+### 2. Perhitungan Harga Pokok dengan MWA
+- Sistem sudah memakai pendekatan Moving Weighted Average (MWA) untuk pembaruan harga beli rata-rata saat stok masuk.
+- Audit kolom MWA di `stock_movements` sudah tersedia:
+  - `unit_cost_in`
+  - `avg_cost_before`
+  - `avg_cost_after`
+  - `stock_before`
+  - `stock_after`
+- Snapshot modal saat transaksi penjualan sudah tersedia di `sale_items`.
+- Nilai HPP, diskon teralokasi, nilai bersih per item, dan laba kotor per item sudah disimpan untuk menjaga histori laporan.
 
-3. Riwayat Penjualan
-- Filter tanggal
-- Ringkasan jumlah transaksi dan total nilai
+### 3. POS Kasir
+- Buka shift kas dengan input kas awal sudah tersedia.
+- Validasi hanya satu shift terbuka per kasir sudah tersedia.
+- Transaksi penjualan multi item sudah tersedia.
+- Tambah item cepat di POS tersedia dari daftar produk aktif yang masih punya stok.
+- Validasi stok saat checkout sudah tersedia.
+- Metode pembayaran `cash` dan `transfer` sudah tersedia.
+- Diskon nominal transaksi sudah tersedia.
+- Perhitungan jumlah bayar dan kembalian sudah tersedia.
+- Simpan header penjualan dan detail item sudah tersedia.
+- Pengurangan stok otomatis setelah transaksi sudah tersedia.
+- Pencatatan mutasi stok tipe `sale` setelah transaksi sudah tersedia.
+- Tutup shift kas dengan hitung kas sistem, kas aktual, dan variance sudah tersedia.
 
-4. Laporan Harian
-- Total transaksi harian
-- Omzet harian
-- Total diskon
-- HPP terjual (berdasarkan snapshot modal saat transaksi)
-- Laba kotor (omzet - HPP)
-- Breakdown metode pembayaran
-- Top produk
-- Daftar stok menipis
+### 4. Riwayat dan Laporan
+- Riwayat penjualan dengan filter tanggal sudah tersedia.
+- Ringkasan jumlah transaksi dan total penjualan pada halaman riwayat sudah tersedia.
+- Laporan penjualan harian sudah tersedia.
+- Laporan harian sudah menampilkan:
+  - total transaksi
+  - omzet
+  - total diskon
+  - total HPP
+  - laba kotor
+  - breakdown metode pembayaran
+  - top produk
+  - daftar stok menipis
 
-5. RBAC
-- Role baru: `cashier`
-- Permission produk, penjualan, dan shift
-- Menu otomatis tampil sesuai permission
+### 5. Hak Akses dan Navigasi
+- Role `cashier` sudah ditambahkan.
+- Permission untuk produk, master data, penjualan, shift, dan laporan sudah tersedia.
+- Route POS, laporan, produk, dan master data sudah diproteksi dengan permission.
+- Sidebar untuk menu POS dan inventory sudah tersedia sesuai izin akses.
 
-## File yang Ditambahkan
+## File yang Sudah Ada
 
 ### Migrations
 - `app/Database/Migrations/2026-04-27-000001_CreatePosMvpTables.php`
+- `app/Database/Migrations/2026-04-27-000002_CreateProductMasterTables.php`
 - `app/Database/Migrations/2026-04-27-000003_AddProfitSnapshotToSaleItems.php`
 - `app/Database/Migrations/2026-04-27-000004_BackfillProfitSnapshotSaleItems.php`
+- `app/Database/Migrations/2026-04-27-000005_AddMwaAuditColumnsToStockMovements.php`
 
-Tabel yang dibuat:
+Tabel utama yang sudah dibuat:
 - `products`
+- `product_categories`
+- `product_units`
 - `cash_shifts`
 - `sales`
 - `sale_items`
 - `stock_movements`
-
-Kolom tambahan `sale_items` untuk keamanan histori laba-rugi:
-- `cost_price_snapshot`
-- `cogs_total`
-- `discount_allocated`
-- `net_line_total`
-- `gross_profit`
 
 ### Models
 - `app/Models/ProductModel.php`
@@ -83,6 +100,8 @@ Kolom tambahan `sale_items` untuk keamanan histori laba-rugi:
 - `app/Views/products/index.php`
 - `app/Views/products/create.php`
 - `app/Views/products/edit.php`
+- `app/Views/products/scan_flow.php`
+- `app/Views/products/mwa_history.php`
 - `app/Views/master_data/categories.php`
 - `app/Views/master_data/units.php`
 - `app/Views/pos/index.php`
@@ -96,109 +115,53 @@ Kolom tambahan `sale_items` untuk keamanan histori laba-rugi:
 - `app/Database/Seeds/ProductSeeder.php`
 - `app/Database/Seeds/DummySalesSeeder.php`
 
-## File yang Diubah
+## Route yang Sudah Tersedia
 
-- `app/Config/AuthGroups.php`
-  - Tambah group `cashier`
-  - Tambah permission modul POS MVP
-  - Update permission matrix
+### POS
+- `GET /pos`
+- `POST /pos/open-shift`
+- `POST /pos/checkout`
+- `POST /pos/close-shift`
+- `GET /pos/history`
 
-- `app/Config/Routes.php`
-  - Tambah route produk, master data, POS, dan laporan harian
-
-- `app/Views/partials/sidebar.php`
-  - Tambah menu POS, riwayat penjualan, laporan harian, produk, dan master data
-
-- `app/Database/Seeds/UserSeeder.php`
-  - Tambah user default `cashier@example.com`
-
-- `app/Database/Seeds/DatabaseSeeder.php`
-  - Menjalankan seluruh seeder awal dalam satu perintah
-  - Termasuk user, master produk, produk contoh, dan transaksi dummy
-
-## Alur Bisnis MVP
-
-1. Persiapan
-- Admin siapkan master kategori barang dan satuan.
-- Admin input master produk dan stok awal, atau gunakan produk contoh dari seeder.
-- Admin menyiapkan user kasir.
-
-2. Mulai Shift
-- Kasir buka shift dari menu POS dengan input kas awal.
-
-3. Transaksi Penjualan
-- Kasir menambah item dengan 2 cara:
-  - Scan barcode (SKU) lalu Enter
-  - Ketik nama barang lalu Enter atau klik tombol Tambah
-- Sistem otomatis menambah baris keranjang atau menambah qty jika barang sudah ada di keranjang.
-- Sistem validasi stok.
-- Sistem menghitung subtotal, diskon, grand total, dan kembalian.
-- Sistem menyimpan transaksi (header + item).
-- Sistem menyimpan snapshot modal per item (`cost_price_snapshot`) saat transaksi terjadi.
-- Sistem mengurangi stok produk dan mencatat `stock_movements`.
-
-4. Monitoring Harian
-- Kasir/manager lihat riwayat transaksi.
-- Manager lihat laporan harian, HPP terjual, laba kotor, dan stok menipis.
-
-5. Tutup Shift
-- Kasir input kas fisik akhir.
-- Sistem hitung kas sistem = kas awal + total penjualan tunai.
-- Sistem simpan selisih kas (variance).
-
-## Daftar Permission Baru
+### Laporan
+- `GET /reports/sales-daily`
 
 ### Produk
-- `products.list`
-- `products.create`
-- `products.edit`
-- `products.stock-in`
+- `GET /admin/products`
+- `GET /admin/products/data`
+- `GET /admin/products/create`
+- `POST /admin/products/store`
+- `GET /admin/products/edit/{id}`
+- `POST /admin/products/update/{id}`
+- `POST /admin/products/stock-in/{id}`
+- `GET /admin/products/scan`
+- `POST /admin/products/scan-flow`
+- `GET /admin/products/mwa-history`
+- `GET /admin/products/mwa-history/data`
 
 ### Master Data
-- `masters.categories.list`
-- `masters.categories.create`
-- `masters.categories.edit`
-- `masters.units.list`
-- `masters.units.create`
-- `masters.units.edit`
+- `GET /admin/master-data/categories`
+- `GET /admin/master-data/categories/data`
+- `POST /admin/master-data/categories/store`
+- `POST /admin/master-data/categories/update/{id}`
+- `GET /admin/master-data/units`
+- `GET /admin/master-data/units/data`
+- `POST /admin/master-data/units/store`
+- `POST /admin/master-data/units/update/{id}`
 
-### Penjualan
-- `sales.create`
-- `sales.list`
+## Alur Bisnis yang Sudah Berjalan
 
-### Shift Kas
-- `shifts.open`
-- `shifts.close`
+1. Admin melengkapi master kategori dan satuan.
+2. Admin membuat produk atau memakai produk contoh dari seeder.
+3. Admin atau petugas stok dapat memakai scan flow untuk barang baru atau restock barang lama.
+4. Kasir membuka shift kas.
+5. Kasir melakukan transaksi penjualan dan sistem memvalidasi stok.
+6. Sistem menyimpan transaksi, snapshot modal, detail item, dan mutasi stok penjualan.
+7. Kasir menutup shift dan sistem menghitung selisih kas.
+8. Manager atau admin dapat melihat riwayat penjualan, laporan harian, dan histori mutasi stok.
 
-## Mapping Role (MVP)
-
-- `superadmin`: semua akses modul POS
-- `admin`: semua akses operasional POS + produk
-- `cashier`: POS transaksi, riwayat, buka/tutup shift
-- `manager`: lihat laporan dan riwayat
-- `user`: hanya dashboard
-
-## Cara Menjalankan
-
-1. Jalankan migration:
-
-```bash
-php spark migrate
-```
-
-2. Jalankan seeder awal lengkap:
-
-```bash
-php spark db:seed DatabaseSeeder
-```
-
-3. Login akun kasir:
-- Email: `cashier@example.com`
-- Password: `password123`
-
-4. Login sebagai admin/superadmin untuk melihat menu master data, produk, dan produk contoh yang sudah tersedia.
-
-## Data Awal Seeder
+## Data Awal yang Sudah Disediakan
 
 ### Master Kategori
 - `Sembako`
@@ -243,21 +206,70 @@ php spark db:seed DatabaseSeeder
 - `BRG-012` Kopi Sachet
 
 ### Transaksi Dummy
-- 5 transaksi demo dibuat untuk tanggal `2026-04-26` dan `2026-04-27`
-- Mencakup pembayaran `cash` dan `transfer`
-- Otomatis membuat `cash_shifts`, `sales`, `sale_items`, dan `stock_movements`
-- Data ini berguna untuk mencoba:
-  - halaman POS history
-  - laporan harian
-  - stok menipis setelah penjualan
+- 5 transaksi demo tersedia untuk tanggal `2026-04-26` dan `2026-04-27`.
+- Mencakup pembayaran `cash` dan `transfer`.
+- Otomatis membentuk data `cash_shifts`, `sales`, `sale_items`, dan `stock_movements`.
+- Dapat dipakai untuk mencoba halaman riwayat, laporan harian, dan histori mutasi stok.
 
-## Catatan Batasan MVP Saat Ini
+## Permission yang Sudah Dipakai
 
-- Belum ada modul pembelian/PO formal.
+### Produk
+- `products.list`
+- `products.create`
+- `products.edit`
+- `products.stock-in`
+
+### Master Data
+- `masters.categories.list`
+- `masters.categories.create`
+- `masters.categories.edit`
+- `masters.units.list`
+- `masters.units.create`
+- `masters.units.edit`
+
+### Penjualan dan Shift
+- `sales.create`
+- `sales.list`
+- `shifts.open`
+- `shifts.close`
+
+### Laporan
+- `reports.view`
+
+## Mapping Role Saat Ini
+
+- `superadmin`: semua akses modul POS, produk, master data, laporan, dan admin.
+- `admin`: akses operasional POS, laporan, produk, master data, dan user management tertentu.
+- `manager`: lihat dashboard, laporan, riwayat penjualan, dan daftar produk.
+- `cashier`: transaksi POS, riwayat penjualan, buka shift, tutup shift, dan lihat produk.
+- `user`: akses dashboard saja.
+
+## Cara Menjalankan
+
+1. Jalankan migration:
+
+```bash
+php spark migrate
+```
+
+2. Jalankan seeder awal:
+
+```bash
+php spark db:seed DatabaseSeeder
+```
+
+3. Login akun kasir untuk uji alur POS.
+
+4. Login akun admin atau superadmin untuk uji master data, produk, scan flow, dan histori mutasi stok.
+
+## Batasan yang Masih Ada
+
+- Belum ada modul pembelian atau purchase order formal.
 - Belum ada retur penjualan.
 - Belum ada cetak struk thermal.
 - Belum ada multi gudang atau multi cabang.
-- Laporan masih level operasional harian.
+- Belum ada export laporan.
+- POS masih berbasis form web standar, belum terhubung ke printer atau perangkat kasir khusus.
 - Snapshot laba-rugi transaksi lama yang dibuat sebelum fitur ini dibackfill menggunakan nilai modal produk saat migrasi backfill dijalankan.
 
 ## Rekomendasi Next Step

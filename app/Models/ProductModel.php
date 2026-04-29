@@ -13,6 +13,7 @@ class ProductModel extends Model
     protected $protectFields    = true;
     protected $allowedFields    = [
         'sku',
+        'image',
         'name',
         'category',
         'unit',

@@ -58,6 +58,12 @@ class ProductController extends BaseController
         foreach ($products as $product) {
             $stock = (int) $product['stock'];
             $minStock = (int) $product['min_stock'];
+            $imageUrl = ! empty($product['image']) ? base_url((string) $product['image']) : null;
+
+            $placeholder = '<span style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:8px;border:1px solid #e5e7eb;background:#f1f5f9;"><svg xmlns=\'http://www.w3.org/2000/svg\' width=\'22\' height=\'22\' fill=\'none\' viewBox=\'0 0 24 24\' stroke=\'#94a3b8\'><rect x=\'3\' y=\'3\' width=\'18\' height=\'18\' rx=\'3\' stroke-width=\'1.5\'/><circle cx=\'8.5\' cy=\'8.5\' r=\'1.5\' stroke-width=\'1.5\'/><path stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M3 16l5-5 4 4 3-3 6 6\'/></svg></span>';
+            $imageHtml = $imageUrl
+                ? '<img src="' . esc($imageUrl) . '" alt="' . esc((string) $product['name']) . '" style="width:42px;height:42px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;">'
+                : $placeholder;
 
             $stockHtml = $stock . ' ' . esc((string) $product['unit']);
             if ($stock <= $minStock) {
@@ -84,6 +90,7 @@ class ProductController extends BaseController
             $rows[] = [
                 $no++,
                 esc((string) ($product['sku'] ?: '-')),
+                $imageHtml,
                 esc((string) $product['name']),
                 esc((string) ($product['category'] ?: '-')),
                 'Rp ' . number_format((float) $product['sell_price'], 0, ',', '.'),
@@ -126,14 +133,18 @@ class ProductController extends BaseController
             'sell_price' => 'required|decimal',
             'stock'      => 'required|integer|greater_than_equal_to[0]',
             'min_stock'  => 'permit_empty|integer|greater_than_equal_to[0]',
+            'image'      => 'permit_empty|is_image[image]|mime_in[image,image/jpg,image/jpeg,image/png,image/webp]|max_size[image,2048]',
         ];
 
         if (! $this->validate($rules)) {
             return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
         }
 
+        $uploadedImagePath = $this->uploadProductImage();
+
         $this->productModel->insert([
             'sku'        => $this->request->getPost('sku') ?: null,
+            'image'      => $uploadedImagePath,
             'name'       => $this->request->getPost('name'),
             'category'   => $this->request->getPost('category') ?: null,
             'unit'       => $this->request->getPost('unit'),
@@ -185,6 +196,7 @@ class ProductController extends BaseController
             'sell_price' => 'required|decimal',
             'stock'      => 'required|integer|greater_than_equal_to[0]',
             'min_stock'  => 'permit_empty|integer|greater_than_equal_to[0]',
+            'image'      => 'permit_empty|is_image[image]|mime_in[image,image/jpg,image/jpeg,image/png,image/webp]|max_size[image,2048]',
         ];
 
         if (! $this->validate($rules)) {
@@ -195,9 +207,22 @@ class ProductController extends BaseController
         $newStock = (int) $this->request->getPost('stock');
         $oldAvgCost = (float) ($product['cost_price'] ?? 0);
         $newAvgCost = (float) ($this->request->getPost('cost_price') ?: 0);
+        $newImagePath = $product['image'] ?? null;
+
+        if ($this->request->getPost('remove_image') === '1') {
+            $this->removeProductImage($newImagePath);
+            $newImagePath = null;
+        }
+
+        $uploadedImagePath = $this->uploadProductImage();
+        if ($uploadedImagePath !== null) {
+            $this->removeProductImage($newImagePath);
+            $newImagePath = $uploadedImagePath;
+        }
 
         $this->productModel->update($id, [
             'sku'        => $this->request->getPost('sku') ?: null,
+            'image'      => $newImagePath,
             'name'       => $this->request->getPost('name'),
             'category'   => $this->request->getPost('category') ?: null,
             'unit'       => $this->request->getPost('unit'),
@@ -551,5 +576,36 @@ class ProductController extends BaseController
         $incomingInventoryValue = $incomingQty * $incomingUnitCost;
 
         return round(($currentInventoryValue + $incomingInventoryValue) / $totalQty, 2);
+    }
+
+    private function uploadProductImage(string $field = 'image'): ?string
+    {
+        $file = $this->request->getFile($field);
+
+        if (! $file || ! $file->isValid() || $file->getError() === UPLOAD_ERR_NO_FILE) {
+            return null;
+        }
+
+        $uploadDir = FCPATH . 'uploads/products';
+        if (! is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $newName = $file->getRandomName();
+        $file->move($uploadDir, $newName);
+
+        return 'uploads/products/' . $newName;
+    }
+
+    private function removeProductImage(?string $relativePath): void
+    {
+        if (! $relativePath) {
+            return;
+        }
+
+        $fullPath = FCPATH . ltrim($relativePath, '/');
+        if (is_file($fullPath)) {
+            @unlink($fullPath);
+        }
     }
 }

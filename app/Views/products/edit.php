@@ -5,7 +5,7 @@
         <h4>Edit Produk</h4>
       </div>
       <div class="card-body">
-        <form action="<?= base_url('admin/products/update/' . $product['id']) ?>" method="post">
+        <form action="<?= base_url('admin/products/update/' . $product['id']) ?>" method="post" enctype="multipart/form-data">
           <?= csrf_field() ?>
 
           <div class="form-row">
@@ -61,6 +61,30 @@
 
           <div class="form-row">
             <div class="form-group col-md-6">
+              <label>Gambar Produk</label>
+              <input type="file" class="form-control" name="image" id="input-product-image-edit" accept="image/png,image/jpeg,image/jpg,image/webp">
+              <small class="form-text text-muted">Kosongkan jika tidak ingin mengubah gambar. Maksimal 2MB.</small>
+
+              <div class="mt-2">
+                <?php if (! empty($product['image'])): ?>
+                <img src="<?= base_url($product['image']) ?>" alt="<?= esc($product['name']) ?>" id="img-preview" style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;">
+                <?php else: ?>
+                <span id="img-preview" style="display:inline-flex;align-items:center;justify-content:center;width:96px;height:96px;border-radius:10px;border:1px dashed #cbd5e1;background:#f8fafc;color:#94a3b8;font-size:12px;text-align:center;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" fill="none" viewBox="0 0 24 24" stroke="#cbd5e1"><rect x="3" y="3" width="18" height="18" rx="3" stroke-width="1.5"/><circle cx="8.5" cy="8.5" r="1.5" stroke-width="1.5"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 16l5-5 4 4 3-3 6 6"/></svg>
+                </span>
+                <?php endif; ?>
+              </div>
+              <?php if (! empty($product['image'])): ?>
+              <div class="custom-control custom-checkbox mt-2">
+                <input type="checkbox" class="custom-control-input" id="remove_image" name="remove_image" value="1">
+                <label class="custom-control-label" for="remove_image">Hapus gambar saat update</label>
+              </div>
+              <?php endif; ?>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group col-md-6">
               <label>Stok Minimum</label>
               <input type="number" min="0" class="form-control" name="min_stock" value="<?= old('min_stock', $product['min_stock']) ?>">
             </div>
@@ -81,3 +105,43 @@
     </div>
   </div>
 </div>
+
+<?php $this->section('page_js') ?>
+<script>
+(function () {
+  var inputImage = document.getElementById('input-product-image-edit');
+  var imgPreview = document.getElementById('img-preview');
+  var checkboxRemove = document.getElementById('remove_image');
+
+  if (!inputImage || !imgPreview) {
+    return;
+  }
+
+  inputImage.addEventListener('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) {
+      return;
+    }
+
+    var reader = new FileReader();
+    reader.onload = function (e) {
+      if (imgPreview.tagName.toLowerCase() === 'img') {
+        imgPreview.src = e.target.result;
+      } else {
+        var img = document.createElement('img');
+        img.src = e.target.result;
+        img.id = 'img-preview';
+        img.style.cssText = 'width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid #e5e7eb;';
+        imgPreview.parentNode.replaceChild(img, imgPreview);
+        imgPreview = img;
+      }
+    };
+    reader.readAsDataURL(file);
+
+    if (checkboxRemove) {
+      checkboxRemove.checked = false;
+    }
+  });
+})();
+</script>
+<?= $this->endSection() ?>

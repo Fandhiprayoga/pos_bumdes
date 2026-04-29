@@ -178,6 +178,7 @@
                 <tr>
                   <th>#</th>
                   <th>SKU</th>
+                  <th>Gambar</th>
                   <th>Nama</th>
                   <th>Kategori</th>
                   <th>Harga Jual</th>
@@ -255,8 +256,8 @@
     var active = 0;
 
     rows.forEach(function(row) {
-      var stockCell = String((row && row[5]) || '');
-      var statusCell = String((row && row[7]) || '');
+      var stockCell = String((row && row[6]) || '');
+      var statusCell = String((row && row[8]) || '');
 
       if (stockCell.indexOf('Menipis') !== -1) {
         lowStock++;
@@ -293,8 +294,8 @@
       pageLength: 10,
       order: [[0, 'asc']],
       columnDefs: [
-        { targets: [5, 7, 8], orderable: false },
-        { targets: [5, 7, 8], searchable: false },
+        { targets: [2, 6, 8, 9], orderable: false },
+        { targets: [2, 6, 8, 9], searchable: false },
       ],
       language: {
         emptyTable: 'Belum ada data produk.',
