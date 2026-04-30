@@ -872,7 +872,7 @@ $charts = $charts ?? [];
           <?php endif; ?>
 
           <?php if (activeGroupCan('products.list')): ?>
-            <a href="<?= base_url('products') ?>" class="quick-action">
+            <a href="<?= base_url('admin/products') ?>" class="quick-action">
               <span class="quick-action-icon" style="background:#7c3aed;"><i class="fas fa-boxes"></i></span>
               <h6>Kelola Produk</h6>
               <p>Perbarui harga jual, stok, kategori, dan batas minimum persediaan.</p>
