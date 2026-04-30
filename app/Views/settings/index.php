@@ -43,6 +43,12 @@ $s = function (string $key) use ($settings) {
               <i class="fas fa-envelope"></i> Email
             </a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link <?= $activeTab === 'nota' ? 'active' : '' ?>"
+               id="nota-tab" data-toggle="tab" href="#nota" role="tab">
+              <i class="fas fa-receipt"></i> Nota
+            </a>
+          </li>
         </ul>
 
         <!-- Tabs Content -->
@@ -457,6 +463,139 @@ $s = function (string $key) use ($settings) {
             </div>
           </div>
 
+          <!-- ============================================ -->
+          <!-- TAB: NOTA -->
+          <!-- ============================================ -->
+          <div class="tab-pane fade <?= $activeTab === 'nota' ? 'show active' : '' ?>" id="nota" role="tabpanel">
+            <form action="<?= base_url('admin/settings/update/nota') ?>" method="post" enctype="multipart/form-data" class="mt-4">
+              <?= csrf_field() ?>
+
+              <h6 class="mb-3"><i class="fas fa-print"></i> Ukuran Kertas</h6>
+              <div class="form-group row">
+                <label for="paper_size" class="col-sm-3 col-form-label">Ukuran Kertas <span class="text-danger">*</span></label>
+                <div class="col-sm-6">
+                  <select class="form-control" id="paper_size" name="paper_size" required>
+                    <option value="58mm" <?= ($notaSetting['paper_size'] ?? '') === '58mm' ? 'selected' : '' ?>>Thermal 58mm</option>
+                    <option value="80mm" <?= ($notaSetting['paper_size'] ?? '') === '80mm' ? 'selected' : '' ?>>Thermal 80mm</option>
+                    <option value="custom" <?= ($notaSetting['paper_size'] ?? '') === 'custom' ? 'selected' : '' ?>>Custom</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group row" id="custom-width-group" style="display:none;">
+                <label for="custom_width" class="col-sm-3 col-form-label">Lebar Custom (mm)</label>
+                <div class="col-sm-6">
+                  <input type="number" class="form-control" id="custom_width" name="custom_width"
+                         value="<?= $notaSetting['custom_width'] ?? '' ?>" min="40" max="210" placeholder="80">
+                </div>
+              </div>
+
+              <hr>
+              <h6 class="mb-3"><i class="fas fa-font"></i> Tampilan Teks</h6>
+
+              <div class="form-group row">
+                <label for="font_family" class="col-sm-3 col-form-label">Jenis Font</label>
+                <div class="col-sm-6">
+                  <select class="form-control" id="font_family" name="font_family" required>
+                    <option value="Courier New" <?= ($notaSetting['font_family'] ?? '') === 'Courier New' ? 'selected' : '' ?>>Courier New</option>
+                    <option value="Arial" <?= ($notaSetting['font_family'] ?? '') === 'Arial' ? 'selected' : '' ?>>Arial</option>
+                    <option value="Times New Roman" <?= ($notaSetting['font_family'] ?? '') === 'Times New Roman' ? 'selected' : '' ?>>Times New Roman</option>
+                    <option value="Verdana" <?= ($notaSetting['font_family'] ?? '') === 'Verdana' ? 'selected' : '' ?>>Verdana</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <label for="font_size" class="col-sm-3 col-form-label">Ukuran Font (px) <span class="text-danger">*</span></label>
+                <div class="col-sm-4">
+                  <input type="number" class="form-control" id="font_size" name="font_size"
+                         value="<?= $notaSetting['font_size'] ?? 12 ?>" min="9" max="18" required>
+                </div>
+              </div>
+
+              <hr>
+              <h6 class="mb-3"><i class="fas fa-heading"></i> Header & Footer</h6>
+
+              <div class="form-group row">
+                <label for="header_logo" class="col-sm-3 col-form-label">Logo Header</label>
+                <div class="col-sm-6">
+                  <input type="file" class="form-control-file" id="header_logo" name="header_logo" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+                  <small class="form-text text-muted">Upload logo image untuk header nota (PNG/JPG/WEBP/SVG, maks 2MB).</small>
+                  <?php if (! empty($notaSetting['header_icon'])): ?>
+                    <div class="mt-2">
+                      <img src="<?= base_url((string) $notaSetting['header_icon']) ?>" alt="Logo nota" style="max-height:56px;max-width:180px;border:1px solid #e5e7eb;padding:4px;border-radius:6px;background:#fff;">
+                    </div>
+                    <div class="custom-control custom-checkbox mt-2">
+                      <input type="checkbox" class="custom-control-input" id="remove_header_logo" name="remove_header_logo" value="1">
+                      <label class="custom-control-label" for="remove_header_logo">Hapus logo header saat simpan</label>
+                    </div>
+                  <?php endif; ?>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <label for="header_text" class="col-sm-3 col-form-label">Teks Header <span class="text-danger">*</span></label>
+                <div class="col-sm-6">
+                  <input type="text" class="form-control" id="header_text" name="header_text"
+                         value="<?= esc($notaSetting['header_text'] ?? '') ?>" 
+                         placeholder="Nota Penjualan" maxlength="200" required>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <label for="footer_text" class="col-sm-3 col-form-label">Teks Footer</label>
+                <div class="col-sm-6">
+                  <textarea class="form-control" id="footer_text" name="footer_text" rows="2" maxlength="255"><?= esc($notaSetting['footer_text'] ?? '') ?></textarea>
+                  <small class="form-text text-muted">Pesan yang ditampilkan di bagian bawah nota</small>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <label class="col-sm-3 col-form-label"></label>
+                <div class="col-sm-6">
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="show_logo" name="show_logo" value="1" 
+                           <?= ($notaSetting['show_logo'] ?? 1) ? 'checked' : '' ?>>
+                    <label class="custom-control-label" for="show_logo">
+                      Tampilkan logo di header nota
+                    </label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <label for="logo_size" class="col-sm-3 col-form-label">Ukuran Logo</label>
+                <div class="col-sm-6">
+                  <select class="form-control" id="logo_size" name="logo_size" required>
+                    <option value="small" <?= ($notaSetting['logo_size'] ?? 'medium') === 'small' ? 'selected' : '' ?>>Small</option>
+                    <option value="medium" <?= ($notaSetting['logo_size'] ?? 'medium') === 'medium' ? 'selected' : '' ?>>Medium</option>
+                    <option value="large" <?= ($notaSetting['logo_size'] ?? 'medium') === 'large' ? 'selected' : '' ?>>Large</option>
+                  </select>
+                  <small class="form-text text-muted">Mengatur ukuran logo di header nota cetak.</small>
+                </div>
+              </div>
+
+              <div class="form-group row">
+                <div class="col-sm-9 offset-sm-3">
+                  <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Simpan Pengaturan Nota
+                  </button>
+                </div>
+              </div>
+            </form>
+
+            <!-- Reset Nota Settings -->
+            <hr>
+            <form action="<?= base_url('admin/settings/reset') ?>" method="post"
+                  onsubmit="return confirm('Apakah Anda yakin ingin mereset pengaturan Nota ke default?')">
+              <?= csrf_field() ?>
+              <input type="hidden" name="tab" value="nota">
+              <button type="submit" class="btn btn-outline-danger btn-sm">
+                <i class="fas fa-undo"></i> Reset Pengaturan Nota ke Default
+              </button>
+            </form>
+          </div>
+
         </div><!-- end tab-content -->
       </div>
     </div>
@@ -586,4 +725,21 @@ document.getElementById('btnSendTestEmail').addEventListener('click', function()
     btn.innerHTML = '<i class="fas fa-paper-plane"></i> Kirim';
   });
 });
+
+// Toggle custom width input based on paper size selection
+var paperSizeSelect = document.getElementById('paper_size');
+if (paperSizeSelect) {
+  paperSizeSelect.addEventListener('change', function() {
+    var customWidthGroup = document.getElementById('custom-width-group');
+    if (this.value === 'custom') {
+      customWidthGroup.style.display = 'block';
+      document.getElementById('custom_width').required = true;
+    } else {
+      customWidthGroup.style.display = 'none';
+      document.getElementById('custom_width').required = false;
+    }
+  });
+  // Trigger change on page load
+  paperSizeSelect.dispatchEvent(new Event('change'));
+}
 </script>

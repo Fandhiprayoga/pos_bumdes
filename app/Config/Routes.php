@@ -36,10 +36,16 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
 
     // POS Routes
     $routes->get('pos', 'PosController::index', ['filter' => 'permission:sales.create']);
+    $routes->get('pos/shift', 'PosController::shift', ['filter' => 'permission:sales.create']);
     $routes->post('pos/open-shift', 'PosController::openShift', ['filter' => 'permission:shifts.open']);
     $routes->post('pos/checkout', 'PosController::checkout', ['filter' => 'permission:sales.create']);
     $routes->post('pos/close-shift', 'PosController::closeShift', ['filter' => 'permission:shifts.close']);
     $routes->get('pos/history', 'PosController::history', ['filter' => 'permission:sales.list']);
+    $routes->get('pos/receipt/(:num)', 'PosController::receipt/$1', ['filter' => 'permission:sales.create']);
+    $routes->get('pos/pending-transactions', 'PosController::pendingList', ['filter' => 'permission:sales.create']);
+    $routes->post('pos/pending-transactions', 'PosController::savePending', ['filter' => 'permission:sales.create']);
+    $routes->post('pos/pending-transactions/(:num)/restore', 'PosController::restorePending/$1', ['filter' => 'permission:sales.create']);
+    $routes->post('pos/pending-transactions/(:num)/delete', 'PosController::deletePending/$1', ['filter' => 'permission:sales.create']);
 
     // Reports
     $routes->get('reports/sales-daily', 'SalesReportController::daily', ['filter' => 'permission:reports.view']);
@@ -74,6 +80,7 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
             $routes->post('update/appearance', 'SettingController::updateAppearance');
             $routes->post('update/auth', 'SettingController::updateAuth');
             $routes->post('update/mail', 'SettingController::updateMail');
+            $routes->post('update/nota', 'SettingController::updateNotaSetting');
             $routes->post('test-email', 'SettingController::testEmail');
             $routes->post('reset', 'SettingController::resetDefaults');
         });

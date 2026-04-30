@@ -37,8 +37,14 @@ function isDropdownActive(array $paths): string {
       </li>
 
       <?php if (activeGroupCan('sales.create')): ?>
-      <li class="<?= isMenuActive('pos') && !str_contains($currentUrl, 'history') ? 'active' : '' ?>">
+      <li class="<?= isMenuActive('pos') && !str_contains($currentUrl, 'history') && !str_contains($currentUrl, 'shift') ? 'active' : '' ?>">
         <a class="nav-link" href="<?= base_url('pos') ?>"><i class="fas fa-cash-register"></i> <span>POS Kasir</span></a>
+      </li>
+      <?php endif; ?>
+
+      <?php if (activeGroupCan('sales.create')): ?>
+      <li class="<?= isMenuActive('pos/shift') ?>">
+        <a class="nav-link" href="<?= base_url('pos/shift') ?>"><i class="fas fa-door-open"></i> <span>Buka / Tutup Shift</span></a>
       </li>
       <?php endif; ?>
 

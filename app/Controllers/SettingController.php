@@ -45,6 +45,7 @@ class SettingController extends BaseController
         $activeTab = $this->request->getGet('tab') ?? 'general';
 
         $authGroups = config('AuthGroups');
+        $notaSettingModel = new \App\Models\NotaSettingModel();
 
         $data = [
             'title'      => 'Pengaturan',
@@ -52,6 +53,7 @@ class SettingController extends BaseController
             'activeTab'  => $activeTab,
             'groups'     => $authGroups->groups,
             'settings'   => $this->getAllSettings(),
+            'notaSetting' => $notaSettingModel->getSettings(),
         ];
 
         return $this->renderView('settings/index', $data);
@@ -305,6 +307,7 @@ class SettingController extends BaseController
     public function resetDefaults()
     {
         $tab = $this->request->getPost('tab') ?? 'general';
+        $notaSettingModel = new \App\Models\NotaSettingModel();
 
         // Tentukan key mana yang di-reset berdasarkan tab
         $keysToReset = match ($tab) {
@@ -312,6 +315,7 @@ class SettingController extends BaseController
             'auth'    => ['App.defaultRole', 'Auth.allowRegistration', 'App.maintenanceMode', 'App.maintenanceMsg'],
             'mail'       => ['Mail.protocol', 'Mail.hostname', 'Mail.port', 'Mail.username', 'Mail.password', 'Mail.encryption', 'Mail.fromEmail', 'Mail.fromName', 'Email.protocol', 'Email.SMTPHost', 'Email.SMTPPort', 'Email.SMTPUser', 'Email.SMTPPass', 'Email.SMTPCrypto', 'Email.fromEmail', 'Email.fromName'],
             'appearance' => ['App.navbarBg', 'App.sidebarActive'],
+            'nota'       => [],
             default      => array_keys($this->defaults),
         };
 
@@ -332,7 +336,110 @@ class SettingController extends BaseController
             setting()->forget($key);
         }
 
+        // Reset pengaturan nota + hapus file logo jika ada
+        if ($tab === 'nota') {
+            $notaSetting = $notaSettingModel->first();
+            if ($notaSetting && ! empty($notaSetting['header_icon'])) {
+                $logoPath = FCPATH . ltrim((string) $notaSetting['header_icon'], '/');
+                if (file_exists($logoPath)) {
+                    unlink($logoPath);
+                }
+            }
+
+            if ($notaSetting) {
+                $notaSettingModel->delete($notaSetting['id']);
+            }
+        }
+
         return redirect()->to('/admin/settings?tab=' . $tab)->with('success', 'Pengaturan berhasil direset ke default.');
+    }
+
+    /**
+     * Update pengaturan nota
+     */
+    public function updateNotaSetting()
+    {
+        $notaSettingModel = new \App\Models\NotaSettingModel();
+
+        $rules = [
+            'paper_size'      => 'required|in_list[58mm,80mm,custom]',
+            'custom_width'    => 'permit_empty|numeric|greater_than[0]|less_than[200]',
+            'font_size'       => 'required|numeric|greater_than[8]|less_than[20]',
+            'font_family'     => 'required|max_length[50]',
+            'header_text'     => 'required|max_length[200]',
+            'footer_text'     => 'permit_empty|max_length[255]',
+            'show_logo'       => 'permit_empty',
+            'logo_size'       => 'required|in_list[small,medium,large]',
+        ];
+
+        if (! $this->validate($rules)) {
+            return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+        }
+
+        $paperSize = $this->request->getPost('paper_size');
+        $customWidth = null;
+        if ($paperSize === 'custom') {
+            $customWidth = (int) $this->request->getPost('custom_width');
+        }
+
+        $existing = $notaSettingModel->first();
+        $headerLogoPath = $existing['header_icon'] ?? null;
+
+        $uploadPath = FCPATH . 'uploads/nota';
+        if (! is_dir($uploadPath)) {
+            mkdir($uploadPath, 0755, true);
+        }
+
+        $removeHeaderLogo = $this->request->getPost('remove_header_logo') ? true : false;
+        if ($removeHeaderLogo && ! empty($headerLogoPath)) {
+            $oldPath = FCPATH . ltrim((string) $headerLogoPath, '/');
+            if (file_exists($oldPath)) {
+                unlink($oldPath);
+            }
+            $headerLogoPath = null;
+        }
+
+        $headerLogo = $this->request->getFile('header_logo');
+        if ($headerLogo && $headerLogo->isValid() && ! $headerLogo->hasMoved()) {
+            $validLogo = $this->validate([
+                'header_logo' => 'uploaded[header_logo]|max_size[header_logo,2048]|is_image[header_logo]|mime_in[header_logo,image/png,image/jpeg,image/webp,image/svg+xml]',
+            ]);
+
+            if (! $validLogo) {
+                return redirect()->back()->withInput()->with('errors', $this->validator->getErrors());
+            }
+
+            if (! empty($headerLogoPath)) {
+                $oldPath = FCPATH . ltrim((string) $headerLogoPath, '/');
+                if (file_exists($oldPath)) {
+                    unlink($oldPath);
+                }
+            }
+
+            $logoName = 'nota_logo_' . time() . '.' . $headerLogo->getExtension();
+            $headerLogo->move($uploadPath, $logoName);
+            $headerLogoPath = 'uploads/nota/' . $logoName;
+        }
+
+        $data = [
+            'paper_size'   => $paperSize,
+            'custom_width' => $customWidth,
+            'font_size'    => (int) $this->request->getPost('font_size'),
+            'font_family'  => $this->request->getPost('font_family'),
+            'header_text'  => $this->request->getPost('header_text'),
+            'header_icon'  => $headerLogoPath,
+            'footer_text'  => $this->request->getPost('footer_text') ?: null,
+            'show_logo'    => $this->request->getPost('show_logo') ? 1 : 0,
+            'logo_size'    => $this->request->getPost('logo_size') ?: 'medium',
+        ];
+
+        if ($existing) {
+            $notaSettingModel->update($existing['id'], $data);
+        } else {
+            $notaSettingModel->insert($data);
+        }
+
+        return redirect()->to('/admin/settings?tab=nota')->with('success', 'Pengaturan nota berhasil diperbarui.');
     }
 
     /**
