@@ -269,8 +269,30 @@ php spark db:seed DatabaseSeeder
 - Belum ada cetak struk thermal.
 - Belum ada multi gudang atau multi cabang.
 - Belum ada export laporan.
+- Belum ada ringkasan performa shift real-time di halaman POS.
+- Belum ada log aktivitas shift untuk audit (refund, void, override diskon, buka/tutup shift).
+- Belum ada approval supervisor untuk aksi sensitif saat shift berjalan.
+- Belum ada alur handover shift antar kasir.
 - POS masih berbasis form web standar, belum terhubung ke printer atau perangkat kasir khusus.
 - Snapshot laba-rugi transaksi lama yang dibuat sebelum fitur ini dibackfill menggunakan nilai modal produk saat migrasi backfill dijalankan.
+
+## Update Backlog Halaman Shift (/pos/shift)
+
+Bagian ini merangkum update fitur yang disarankan untuk meningkatkan kontrol operasional kasir dan audit kas.
+
+### Prioritas 1 (MVP+)
+- Ringkasan shift real-time: kas awal, total transaksi, total item, total diskon, total refund/void, dan kas sistem berjalan.
+- Rekonsiliasi kas saat tutup shift: input kas fisik, hitung selisih otomatis, dan alasan wajib jika selisih melewati ambang batas.
+- Log aktivitas shift: jejak event penting beserta waktu dan user (open shift, close shift, refund, void, override).
+
+### Prioritas 2
+- Approval supervisor (PIN) untuk refund, void, atau diskon di atas limit.
+- Notifikasi anomali shift (misal refund/void berlebih atau selisih kas berulang).
+- Ekspor dan cetak ringkasan shift (PDF/print) untuk kebutuhan arsip harian.
+
+### Prioritas 3
+- Handover shift antar kasir dengan berita acara serah terima kas.
+- Dukungan multi drawer per shift (jika operasional memakai lebih dari satu laci/terminal).
 
 ## Rekomendasi Next Step
 
@@ -279,3 +301,4 @@ php spark db:seed DatabaseSeeder
 3. Tambah export laporan (CSV/PDF).
 4. Tambah halaman detail transaksi dengan item.
 5. Tambah approval untuk diskon/void besar.
+6. Implementasi backlog fitur `/pos/shift` bertahap mulai dari Prioritas 1.
