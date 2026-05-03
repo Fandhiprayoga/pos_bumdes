@@ -2,6 +2,12 @@
 
 Dokumen ini merangkum apa saja yang sudah benar-benar dikerjakan dan tersedia di codebase untuk modul POS MVP.
 
+## Update Terakhir (2026-05-03)
+
+- Halaman `GET /pos/history` kini membatasi data untuk active role `cashier` agar hanya menampilkan transaksi yang dibuat user login (`cashier_id` sendiri).
+- Role selain `cashier` (seperti `manager`, `admin`, `superadmin`) tetap dapat melihat transaksi semua user sesuai rentang tanggal filter.
+- UI halaman riwayat penjualan menampilkan indikator kecil **"Menampilkan transaksi Anda saja"** saat filter role `cashier` aktif.
+
 ## Status Implementasi Saat Ini
 
 ### 1. Master Produk dan Inventori
@@ -44,7 +50,10 @@ Dokumen ini merangkum apa saja yang sudah benar-benar dikerjakan dan tersedia di
 
 ### 4. Riwayat dan Laporan
 - Riwayat penjualan dengan filter tanggal sudah tersedia.
+- Untuk active role `cashier`, riwayat penjualan dibatasi ke transaksi milik sendiri.
+- Untuk active role non-`cashier`, riwayat penjualan menampilkan transaksi semua user.
 - Ringkasan jumlah transaksi dan total penjualan pada halaman riwayat sudah tersedia.
+- Indikator scope data pada UI riwayat untuk role `cashier` sudah tersedia.
 - Laporan penjualan harian sudah tersedia.
 - Laporan harian sudah menampilkan:
   - total transaksi
@@ -61,6 +70,12 @@ Dokumen ini merangkum apa saja yang sudah benar-benar dikerjakan dan tersedia di
 - Permission untuk produk, master data, penjualan, shift, dan laporan sudah tersedia.
 - Route POS, laporan, produk, dan master data sudah diproteksi dengan permission.
 - Sidebar untuk menu POS dan inventory sudah tersedia sesuai izin akses.
+
+### 6. History Shift
+- Saat ini sudah ada alur buka/tutup shift kas pada modul POS.
+- Riwayat shift masih belum memiliki halaman daftar khusus (history shift) yang terpisah dari halaman operasional shift.
+- Kebutuhan history shift sudah dicatat untuk menampilkan daftar shift beserta kas awal, kas sistem, kas aktual, variance, waktu buka/tutup, dan user kasir.
+- Akses history shift direncanakan mengikuti permission shift (`shifts.open`/`shifts.close`) atau permission khusus baru jika diperlukan audit lebih detail.
 
 ## File yang Sudah Ada
 
@@ -119,6 +134,7 @@ Tabel utama yang sudah dibuat:
 
 ### POS
 - `GET /pos`
+- `GET /pos/shift`
 - `POST /pos/open-shift`
 - `POST /pos/checkout`
 - `POST /pos/close-shift`
@@ -159,7 +175,7 @@ Tabel utama yang sudah dibuat:
 5. Kasir melakukan transaksi penjualan dan sistem memvalidasi stok.
 6. Sistem menyimpan transaksi, snapshot modal, detail item, dan mutasi stok penjualan.
 7. Kasir menutup shift dan sistem menghitung selisih kas.
-8. Manager atau admin dapat melihat riwayat penjualan, laporan harian, dan histori mutasi stok.
+8. Cashier melihat riwayat transaksi miliknya sendiri, sedangkan manager/admin/superadmin dapat melihat riwayat lintas user; laporan harian dan histori mutasi stok tetap tersedia sesuai izin akses.
 
 ## Data Awal yang Sudah Disediakan
 
@@ -241,7 +257,7 @@ Tabel utama yang sudah dibuat:
 - `superadmin`: semua akses modul POS, produk, master data, laporan, dan admin.
 - `admin`: akses operasional POS, laporan, produk, master data, dan user management tertentu.
 - `manager`: lihat dashboard, laporan, riwayat penjualan, dan daftar produk.
-- `cashier`: transaksi POS, riwayat penjualan, buka shift, tutup shift, dan lihat produk.
+- `cashier`: transaksi POS, riwayat penjualan milik sendiri, buka shift, tutup shift, dan lihat produk.
 - `user`: akses dashboard saja.
 
 ## Cara Menjalankan

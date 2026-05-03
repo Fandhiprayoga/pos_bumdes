@@ -76,6 +76,10 @@ class PosController extends BaseController
     public function shift()
     {
         $userId = auth()->id();
+        $from = trim((string) ($this->request->getGet('from') ?? ''));
+        $to = trim((string) ($this->request->getGet('to') ?? ''));
+        $cashierId = (int) ($this->request->getGet('cashier_id') ?? 0);
+        $isManagerUp = activeGroupIs('manager', 'admin', 'superadmin');
 
         $openShift = $this->cashShiftModel
             ->where('user_id', $userId)
@@ -92,12 +96,71 @@ class PosController extends BaseController
             $otherOpenShiftOwner = $this->getUserIdentity((int) $otherOpenShift['user_id']);
         }
 
+        $shiftHistoryQuery = $this->cashShiftModel;
+
+        if (! $isManagerUp) {
+            $shiftHistoryQuery->where('user_id', $userId);
+        } elseif ($cashierId > 0) {
+            $shiftHistoryQuery->where('user_id', $cashierId);
+        }
+
+        if ($from !== '') {
+            $shiftHistoryQuery->where('opened_at >=', $from . ' 00:00:00');
+        }
+
+        if ($to !== '') {
+            $shiftHistoryQuery->where('opened_at <=', $to . ' 23:59:59');
+        }
+
+        $shiftHistory = $shiftHistoryQuery
+            ->orderBy('id', 'DESC')
+            ->limit(50)
+            ->findAll();
+
+        $userLabels = [];
+        foreach ($shiftHistory as &$shift) {
+            $shiftUserId = (int) ($shift['user_id'] ?? 0);
+            if (! isset($userLabels[$shiftUserId])) {
+                $userLabels[$shiftUserId] = $this->getUserIdentity($shiftUserId);
+            }
+
+            $shift['cashier_identity'] = $userLabels[$shiftUserId] ?? ('User ID ' . $shiftUserId);
+        }
+        unset($shift);
+
+        $cashierOptions = [];
+        if ($isManagerUp) {
+            $cashierRows = $this->cashShiftModel
+                ->select('user_id')
+                ->groupBy('user_id')
+                ->orderBy('user_id', 'ASC')
+                ->findAll();
+
+            foreach ($cashierRows as $row) {
+                $optionUserId = (int) ($row['user_id'] ?? 0);
+                if ($optionUserId <= 0) {
+                    continue;
+                }
+
+                $cashierOptions[] = [
+                    'id' => $optionUserId,
+                    'label' => $this->getUserIdentity($optionUserId),
+                ];
+            }
+        }
+
         $data = [
             'title'       => 'Shift Kasir',
             'page_title'  => 'Buka / Tutup Shift',
             'openShift'   => $openShift,
             'otherOpenShift' => $otherOpenShift,
             'otherOpenShiftOwner' => $otherOpenShiftOwner,
+            'shiftHistory' => $shiftHistory,
+            'historyFrom' => $from,
+            'historyTo'   => $to,
+            'historyCashierId' => $cashierId,
+            'historyIsManagerUp' => $isManagerUp,
+            'historyCashierOptions' => $cashierOptions,
         ];
 
         return $this->renderView('pos/shift', $data);
@@ -658,21 +721,34 @@ class PosController extends BaseController
     {
         $from = $this->request->getGet('from') ?: date('Y-m-d');
         $to   = $this->request->getGet('to') ?: date('Y-m-d');
+        $userId = auth()->id();
+        $isCashier = activeGroupIs('cashier');
 
         $fromDateTime = $from . ' 00:00:00';
         $toDateTime   = $to . ' 23:59:59';
 
-        $sales = $this->saleModel
+        $salesQuery = $this->saleModel
             ->where('sold_at >=', $fromDateTime)
-            ->where('sold_at <=', $toDateTime)
+            ->where('sold_at <=', $toDateTime);
+
+        if ($isCashier) {
+            $salesQuery->where('cashier_id', $userId);
+        }
+
+        $sales = $salesQuery
             ->orderBy('id', 'DESC')
             ->findAll();
 
-        $summary = $this->saleModel
+        $summaryQuery = $this->saleModel
             ->select('COUNT(*) as total_tx, COALESCE(SUM(grand_total), 0) as total_amount')
             ->where('sold_at >=', $fromDateTime)
-            ->where('sold_at <=', $toDateTime)
-            ->first();
+            ->where('sold_at <=', $toDateTime);
+
+        if ($isCashier) {
+            $summaryQuery->where('cashier_id', $userId);
+        }
+
+        $summary = $summaryQuery->first();
 
         $data = [
             'title'      => 'Riwayat Penjualan',
@@ -681,6 +757,7 @@ class PosController extends BaseController
             'to'         => $to,
             'sales'      => $sales,
             'summary'    => $summary,
+            'isCashierHistoryLimited' => $isCashier,
         ];
 
         return $this->renderView('pos/history', $data);

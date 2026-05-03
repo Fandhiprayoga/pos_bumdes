@@ -24,6 +24,20 @@
     color: var(--sh-soft-text);
   }
 
+  .sales-history-page .history-scope-indicator {
+    margin-top: 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #0f766e;
+    background: rgba(20, 184, 166, 0.12);
+    border: 1px solid rgba(20, 184, 166, 0.2);
+    border-radius: 999px;
+    padding: 6px 10px;
+  }
+
   .sales-history-page .panel-card,
   .sales-history-page .summary-card {
     border: 1px solid var(--sh-border);
@@ -120,6 +134,11 @@
 <?= $this->endSection() ?>
 
 <?php
+$viewData = get_defined_vars();
+$fromRaw = $viewData['from'] ?? '';
+$toRaw = $viewData['to'] ?? '';
+$from = is_scalar($fromRaw) ? (string) $fromRaw : '';
+$to = is_scalar($toRaw) ? (string) $toRaw : '';
 $totalTx = (int) ($summary['total_tx'] ?? 0);
 $totalAmount = (float) ($summary['total_amount'] ?? 0);
 $avgPerTx = $totalTx > 0 ? ($totalAmount / $totalTx) : 0;
@@ -131,6 +150,9 @@ $avgPerTx = $totalTx > 0 ? ($totalAmount / $totalTx) : 0;
       <div class="history-hero">
         <h4>Riwayat Penjualan</h4>
         <p>Tinjau transaksi pada rentang tanggal tertentu dengan tampilan yang lebih ringkas dan mudah dibaca.</p>
+        <?php if (! empty($isCashierHistoryLimited)): ?>
+          <div class="history-scope-indicator">Menampilkan transaksi Anda saja</div>
+        <?php endif; ?>
       </div>
     </div>
   </div>

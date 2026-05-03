@@ -60,6 +60,48 @@
     border-top-right-radius: 16px;
   }
 
+  .products-page .products-list-card .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .products-page .products-list-card .card-header h4 {
+    margin-bottom: 0;
+  }
+
+  .products-page .products-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .products-page .products-actions .btn {
+    min-height: 42px;
+    border-radius: 10px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .products-page .products-actions .icon-btn {
+    width: 42px;
+    min-width: 42px;
+    padding: 0;
+    justify-content: center;
+    font-size: 15px;
+  }
+
+  .products-page .products-table-meta {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--products-text-soft);
+  }
+
   .products-page .btn-primary {
     background-color: var(--products-accent);
     border-color: var(--products-accent);
@@ -78,7 +120,20 @@
   .products-page .dataTables_wrapper .dataTables_filter input {
     border-radius: 10px;
     border: 1px solid #dbe3ec;
-    padding: 4px 10px;
+    padding: 7px 12px;
+    min-width: 220px;
+  }
+
+  .products-page .dataTables_wrapper .dataTables_length select {
+    border-radius: 10px;
+    border: 1px solid #dbe3ec;
+    min-height: 38px;
+    padding: 4px 8px;
+  }
+
+  .products-page .dataTables_wrapper .dataTables_filter,
+  .products-page .dataTables_wrapper .dataTables_length {
+    margin-bottom: 10px;
   }
 
   .products-page .table thead th {
@@ -98,6 +153,27 @@
     border-radius: 8px;
   }
 
+  @media (max-width: 1024px) {
+    .products-page .products-actions {
+      justify-content: flex-end;
+    }
+
+    .products-page .products-actions .btn {
+      flex: 0 0 auto;
+      justify-content: center;
+      min-width: 42px;
+    }
+
+    .products-page .table thead th,
+    .products-page .table td {
+      white-space: nowrap;
+    }
+
+    .products-page .dataTables_wrapper .dataTables_filter input {
+      min-width: 180px;
+    }
+  }
+
   @media (max-width: 768px) {
     .products-summary-card {
       margin-bottom: 12px;
@@ -105,6 +181,11 @@
 
     .products-hero {
       border-radius: 12px;
+    }
+
+    .products-page .products-actions .btn {
+      flex: 0 0 auto;
+      min-width: 42px;
     }
   }
 </style>
@@ -126,7 +207,7 @@
   </div>
 
   <div class="row mb-4">
-    <div class="col-md-4 mb-3 mb-md-0">
+    <div class="col-sm-6 col-xl-4 mb-3 mb-xl-0">
       <div class="card products-summary-card">
         <div class="card-body py-3">
           <div class="summary-label">Total Produk</div>
@@ -134,7 +215,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-4 mb-3 mb-md-0">
+    <div class="col-sm-6 col-xl-4 mb-3 mb-xl-0">
       <div class="card products-summary-card">
         <div class="card-body py-3">
           <div class="summary-label">Stok Menipis</div>
@@ -142,7 +223,7 @@
         </div>
       </div>
     </div>
-    <div class="col-md-4">
+    <div class="col-12 col-xl-4">
       <div class="card products-summary-card">
         <div class="card-body py-3">
           <div class="summary-label">Produk Aktif</div>
@@ -157,16 +238,16 @@
       <div class="card products-list-card">
         <div class="card-header">
           <h4>Daftar Produk</h4>
-          <div class="card-header-action">
-            <a href="<?= base_url('admin/products/scan') ?>" class="btn btn-outline-dark mr-2">
-              <i class="fas fa-barcode"></i> Halaman Scan Cepat
+          <div class="card-header-action products-actions">
+            <a href="<?= base_url('admin/products/scan') ?>" class="btn btn-outline-dark icon-btn" data-toggle="tooltip" data-placement="top" title="Halaman Scan Cepat" aria-label="Halaman Scan Cepat">
+              <i class="fas fa-barcode"></i>
             </a>
-            <a href="<?= base_url('admin/products/mwa-history') ?>" class="btn btn-light mr-2">
-              <i class="fas fa-history"></i> Histori Mutasi Stok
+            <a href="<?= base_url('admin/products/mwa-history') ?>" class="btn btn-light icon-btn" data-toggle="tooltip" data-placement="top" title="Histori Mutasi Stok" aria-label="Histori Mutasi Stok">
+              <i class="fas fa-history"></i>
             </a>
             <?php if (activeGroupCan('products.create')): ?>
-            <a href="<?= base_url('admin/products/create') ?>" class="btn btn-primary">
-              <i class="fas fa-plus"></i> Tambah Produk
+            <a href="<?= base_url('admin/products/create') ?>" class="btn btn-primary icon-btn" data-toggle="tooltip" data-placement="top" title="Tambah Produk" aria-label="Tambah Produk">
+              <i class="fas fa-plus"></i>
             </a>
             <?php endif; ?>
           </div>
@@ -191,6 +272,7 @@
               <tbody></tbody>
             </table>
           </div>
+          <p class="products-table-meta">Tampilan dioptimalkan untuk tablet: geser horizontal tabel jika kolom tidak muat.</p>
         </div>
       </div>
     </div>
@@ -246,6 +328,10 @@
     document.body.appendChild(stockInModalGlobal);
   }
 
+  if (typeof $ !== 'undefined' && $.fn.tooltip) {
+    $('[data-toggle="tooltip"]').tooltip();
+  }
+
   function renderProductSummary(rows) {
     if (!Array.isArray(rows)) {
       return;
@@ -293,6 +379,9 @@
       deferRender: true,
       pageLength: 10,
       order: [[0, 'asc']],
+       dom: "<'row align-items-center mb-2'<'col-md-6'l><'col-md-6'f>>" +
+         "<'row'<'col-12'tr>>" +
+         "<'row align-items-center mt-2'<'col-md-5'i><'col-md-7'p>>",
       columnDefs: [
         { targets: [2, 6, 8, 9], orderable: false },
         { targets: [2, 6, 8, 9], searchable: false },
