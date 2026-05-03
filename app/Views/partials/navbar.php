@@ -4,6 +4,18 @@ $currentUrl   = current_url();
 $userGroups   = $currentUser->getGroups();
 $active       = activeGroup();
 $authGroups   = config('AuthGroups');
+$uriPath      = trim((string) uri_string(), '/');
+$isPosModule  = $uriPath === 'pos' || strpos($uriPath, 'pos/') === 0;
+$isPosIndex   = $uriPath === 'pos';
+
+$openShift = null;
+if (activeGroupCan('sales.create')) {
+  $cashShiftModel = new \App\Models\CashShiftModel();
+  $openShift = $cashShiftModel
+    ->where('user_id', auth()->id())
+    ->where('closed_at', null)
+    ->first();
+}
 
 // Badge color per group
 $badgeColors = [
@@ -17,12 +29,29 @@ $badgeColors = [
   <form class="form-inline mr-auto">
     <ul class="navbar-nav mr-3">
       <li><a href="#" data-toggle="sidebar" class="nav-link nav-link-lg"><i class="fas fa-bars"></i></a></li>
-      <li><a href="#" data-toggle="search" class="nav-link nav-link-lg d-sm-none"><i class="fas fa-search"></i></a></li>
     </ul>
-    <div class="search-element">
-      <input class="form-control" type="search" placeholder="Search" aria-label="Search" data-width="250">
-      <button class="btn" type="submit"><i class="fas fa-search"></i></button>
-      <div class="search-backdrop"></div>
+    <div class="d-none d-md-flex align-items-center">
+      <?php if (activeGroupCan('sales.create')): ?>
+      <a href="<?= base_url('pos/shift') ?>" class="badge badge-pill <?= $openShift ? 'badge-success' : 'badge-secondary' ?> p-2 mr-2">
+        <i class="fas fa-cash-register mr-1"></i>
+        <?= $openShift ? 'Shift Aktif' : 'Buka Shift' ?>
+      </a>
+      <?php endif; ?>
+
+      <?php if ($isPosIndex): ?>
+      <div class="badge badge-light border p-2 mr-2">
+        <i class="fas fa-shopping-basket mr-1 text-muted"></i>
+        <span id="nav-pos-item-count" class="font-weight-600">0 item</span>
+      </div>
+      <div class="badge badge-light border p-2">
+        <span class="text-muted mr-1">Total:</span>
+        <span id="nav-pos-grand-total" class="font-weight-700">Rp 0</span>
+      </div>
+      <?php elseif ($isPosModule): ?>
+      <div class="badge badge-light border p-2">
+        <span class="text-muted">Modul POS</span>
+      </div>
+      <?php endif; ?>
     </div>
   </form>
   <ul class="navbar-nav navbar-right">
