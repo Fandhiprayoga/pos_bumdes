@@ -15,7 +15,9 @@
     cartTable: document.getElementById('cart-table'),
     emptyCart: document.getElementById('empty-cart'),
     hiddenItemsWrap: document.getElementById('checkout-hidden-items'),
-    customerNameInput: document.getElementById('customer_name'),
+    customerSearchInput: document.getElementById('customer_search_input'),
+    customerIdInput: document.getElementById('customer_id'),
+    creditTermInput: document.getElementById('credit_term'),
     discountInput: document.getElementById('discount_amount'),
     amountPaidInput: document.getElementById('amount_paid'),
     amountPaidValueInput: document.getElementById('amount_paid_value'),
@@ -381,6 +383,8 @@
       renderSummary();
     }
 
+    syncCreditPaymentFields();
+
     if (dom.paymentModal && typeof $ !== 'undefined') {
       $(dom.paymentModal).modal('show');
     }
@@ -660,8 +664,8 @@
     state.cart.clear();
     state.selectedCartProductId = null;
 
-    if (dom.customerNameInput) {
-      dom.customerNameInput.value = '';
+    if (dom.customerSearchInput) {
+      dom.customerSearchInput.value = '';
     }
 
     if (dom.discountInput) {
@@ -670,6 +674,28 @@
 
     if (dom.paymentMethodSelect) {
       dom.paymentMethodSelect.value = 'cash';
+    }
+
+    if (dom.customerIdInput) {
+      dom.customerIdInput.value = '';
+    }
+
+    // Reset customer live search
+    var cSelectedName = document.getElementById('customer_selected_name');
+    if (cSelectedName) {
+      cSelectedName.value = '';
+    }
+    var cSelectedTerm = document.getElementById('customer_selected_term');
+    if (cSelectedTerm) {
+      cSelectedTerm.value = '30';
+    }
+    var cResults = document.getElementById('customer_search_results');
+    if (cResults) {
+      cResults.style.display = 'none';
+    }
+
+    if (dom.creditTermInput) {
+      dom.creditTermInput.value = '30';
     }
 
     if (dom.amountPaidValueInput) {
@@ -681,8 +707,28 @@
     }
 
     syncAmountPaidDisplay(false);
+    syncCreditPaymentFields();
     renderCart();
     focusSearchField(true);
+  }
+
+  function syncCreditPaymentFields() {
+    if (!dom.paymentMethodSelect) {
+      return;
+    }
+
+    const method = String(dom.paymentMethodSelect.value || 'cash');
+    const summary = computeSummary();
+
+    if (method === 'credit') {
+      const current = getAmountPaidNumber();
+      const safeValue = Math.min(current, summary.grandTotal);
+      if (dom.amountPaidValueInput) {
+        dom.amountPaidValueInput.value = String(safeValue);
+      }
+      syncAmountPaidDisplay(false);
+      renderSummary();
+    }
   }
 
   function buildPendingRequestFormData() {
@@ -696,8 +742,10 @@
     }
 
     formData.append('invoice_no', getCurrentInvoiceNo());
-    formData.append('customer_name', dom.customerNameInput ? String(dom.customerNameInput.value || '') : '');
+    formData.append('customer_name', dom.customerSearchInput ? String(dom.customerSearchInput.value || '') : '');
+    formData.append('customer_id', dom.customerIdInput ? String(dom.customerIdInput.value || '') : '');
     formData.append('payment_method', dom.paymentMethodSelect ? String(dom.paymentMethodSelect.value || 'cash') : 'cash');
+    formData.append('credit_term', dom.creditTermInput ? String(dom.creditTermInput.value || '0') : '0');
     formData.append('discount_amount', dom.discountInput ? String(dom.discountInput.value || '0') : '0');
     formData.append('amount_paid', dom.amountPaidValueInput ? String(dom.amountPaidValueInput.value || '0') : '0');
     formData.append('cart_payload', JSON.stringify(Array.from(state.cart.values())));
@@ -741,7 +789,12 @@
     }
 
     list.forEach(function(item) {
-      var paymentLabel = (item.payment_method || 'cash') === 'transfer' ? 'Transfer' : 'Tunai';
+      var paymentValue = String(item.payment_method || 'cash');
+      var paymentLabel = paymentValue === 'transfer'
+        ? 'Transfer'
+        : paymentValue === 'credit'
+          ? 'Kredit'
+          : 'Tunai';
       var element = document.createElement('div');
       element.className = 'pending-item';
       element.innerHTML =
@@ -878,8 +931,8 @@
           });
         });
 
-        if (dom.customerNameInput) {
-          dom.customerNameInput.value = String(payload.data.customer_name || '');
+        if (dom.customerSearchInput) {
+          dom.customerSearchInput.value = String(payload.data.customer_name || '');
         }
         if (dom.discountInput) {
           dom.discountInput.value = String(payload.data.discount_amount || 0);
@@ -887,12 +940,38 @@
         if (dom.paymentMethodSelect) {
           dom.paymentMethodSelect.value = String(payload.data.payment_method || 'cash');
         }
+        if (dom.customerIdInput) {
+          dom.customerIdInput.value = String(payload.data.customer_id || '');
+        }
+
+        // Restore customer live search state
+        var restCsInput = document.getElementById('customer_search_input');
+        var restCsName = document.getElementById('customer_selected_name');
+        var restCsTerm = document.getElementById('customer_selected_term');
+        if (payload.data.customer_name && restCsInput) {
+          restCsInput.value = String(payload.data.customer_name || '');
+        }
+        if (payload.data.customer_id && restCsName) {
+          restCsName.value = String(payload.data.customer_name || '');
+        }
+        if (restCsTerm) {
+          restCsTerm.value = String(payload.data.credit_term || 30);
+        }
+        var restCsResults = document.getElementById('customer_search_results');
+        if (restCsResults) {
+          restCsResults.style.display = 'none';
+        }
+
+        if (dom.creditTermInput) {
+          dom.creditTermInput.value = String(payload.data.credit_term || 0);
+        }
         if (dom.amountPaidValueInput) {
           dom.amountPaidValueInput.value = String(payload.data.amount_paid || 0);
         }
         setCurrentInvoiceNo(payload.data.invoice_no || payload.nextInvoiceNo || '');
         renderCart();
         syncAmountPaidDisplay(false);
+        syncCreditPaymentFields();
         fetchPendingTransactions();
 
         if (dom.pendingTransactionsModal && typeof $ !== 'undefined') {
@@ -1223,6 +1302,235 @@
     });
   }
 
+  // ------------------------------------------------------------
+  // Customer live search.
+  // ------------------------------------------------------------
+  var searchCustomerTimeout = null;
+  var customerSearchInput = document.getElementById('customer_search_input');
+  var customerSearchResults = document.getElementById('customer_search_results');
+  var customerIdInput = document.getElementById('customer_id');
+  var customerSelectedName = document.getElementById('customer_selected_name');
+  var customerSelectedTerm = document.getElementById('customer_selected_term');
+
+  function searchCustomers(query) {
+    if (customerSearchResults) {
+      customerSearchResults.innerHTML = '<div class="list-group-item text-muted text-center small py-2">Mencari...</div>';
+      customerSearchResults.style.display = 'block';
+    }
+
+    var url = '/customers/search?q=' + encodeURIComponent(query || '') + '&limit=20';
+
+    return window.fetch(url, {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: {
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    }).then(function(response) {
+      return response.json();
+    }).then(function(results) {
+      renderCustomerResults(Array.isArray(results) ? results : []);
+      return results;
+    }).catch(function() {
+      if (customerSearchResults) {
+        customerSearchResults.innerHTML = '<div class="list-group-item text-muted text-center small py-2">Gagal memuat data</div>';
+      }
+      return [];
+    });
+  }
+
+  function renderCustomerResults(results) {
+    if (!customerSearchResults) {
+      return;
+    }
+
+    if (results.length === 0) {
+      customerSearchResults.innerHTML = '<div class="list-group-item text-muted text-center small py-2">Pelanggan tidak ditemukan</div>';
+      customerSearchResults.style.display = 'block';
+      return;
+    }
+
+    var html = '';
+    results.forEach(function(c) {
+      var label = '<strong>' + escapeHtml(c.name || '') + '</strong>';
+      if (c.phone) {
+        label += '<br><small class="text-muted">' + escapeHtml(c.phone) + '</small>';
+      }
+      html += '<button type="button" class="list-group-item list-group-item-action" style="border:none;border-bottom:1px solid #f1f5f9;padding:10px 14px;text-align:left;width:100%;background:#fff;" data-customer-id="' + c.id + '" data-customer-name="' + escapeHtml(c.name || '') + '" data-default-term="' + (c.default_credit_term || 30) + '">' + label + '</button>';
+    });
+
+    customerSearchResults.innerHTML = html;
+    customerSearchResults.style.display = 'block';
+  }
+
+  function selectCustomer(id, name, defaultTerm) {
+    if (customerIdInput) {
+      customerIdInput.value = String(id || '');
+    }
+    if (customerSelectedName) {
+      customerSelectedName.value = name || '';
+    }
+    if (customerSelectedTerm) {
+      customerSelectedTerm.value = String(defaultTerm || 30);
+    }
+    if (customerSearchInput) {
+      customerSearchInput.value = name || '';
+    }
+    if (customerSearchResults) {
+      customerSearchResults.style.display = 'none';
+    }
+
+    // Sync credit term with customer's default
+    if (dom.creditTermInput && defaultTerm > 0) {
+      dom.creditTermInput.value = String(defaultTerm);
+    }
+  }
+
+  function clearCustomerSelection(keepSearchInput) {
+    if (customerIdInput) {
+      customerIdInput.value = '';
+    }
+    if (customerSelectedName) {
+      customerSelectedName.value = '';
+    }
+    if (customerSelectedTerm) {
+      customerSelectedTerm.value = '30';
+    }
+    if (customerSearchResults) {
+      customerSearchResults.style.display = 'none';
+    }
+
+    if (!keepSearchInput && customerSearchInput) {
+      customerSearchInput.value = '';
+    }
+  }
+
+  function initCustomerSearch() {
+    if (!customerSearchInput || !customerSearchResults) {
+      return;
+    }
+
+    // Input event with debounce
+    customerSearchInput.addEventListener('input', function() {
+      var query = String(this.value || '').trim();
+
+      if (searchCustomerTimeout) {
+        clearTimeout(searchCustomerTimeout);
+      }
+
+      if (query === '') {
+        clearCustomerSelection(false);
+        if (customerSearchResults) {
+          customerSearchResults.style.display = 'none';
+        }
+        return;
+      }
+
+      // User changed text manually; clear selected customer id to prevent stale mapping.
+      clearCustomerSelection(true);
+
+      searchCustomerTimeout = setTimeout(function() {
+        searchCustomers(query);
+      }, 300);
+    });
+
+    // Focus - show results if there's a query
+    customerSearchInput.addEventListener('focus', function() {
+      var query = String(this.value || '').trim();
+      if (query !== '' && customerSearchResults) {
+        customerSearchResults.style.display = 'block';
+      }
+    });
+
+    // Click on results (delegated)
+    customerSearchResults.addEventListener('click', function(event) {
+      var button = event.target.closest('[data-customer-id]');
+      if (!button) {
+        return;
+      }
+
+      selectCustomer(
+        button.getAttribute('data-customer-id'),
+        button.getAttribute('data-customer-name'),
+        Number(button.getAttribute('data-default-term') || 30)
+      );
+    });
+
+    // Close results on blur
+    customerSearchInput.addEventListener('blur', function() {
+      setTimeout(function() {
+        if (customerSearchResults) {
+          customerSearchResults.style.display = 'none';
+        }
+      }, 200);
+    });
+
+    // Keyboard navigation
+    customerSearchInput.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape') {
+        if (customerSearchResults) {
+          customerSearchResults.style.display = 'none';
+        }
+        customerSearchInput.blur();
+        return;
+      }
+
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        var items = customerSearchResults.querySelectorAll('[data-customer-id]');
+        if (items.length === 0) {
+          return;
+        }
+
+        var activeIndex = -1;
+        items.forEach(function(item, index) {
+          if (item.classList.contains('active')) {
+            activeIndex = index;
+          }
+        });
+
+        var nextIndex;
+        if (event.key === 'ArrowDown') {
+          nextIndex = Math.min(activeIndex + 1, items.length - 1);
+        } else {
+          nextIndex = Math.max(activeIndex - 1, 0);
+        }
+
+        items.forEach(function(item) {
+          item.classList.remove('active');
+          item.style.background = '';
+        });
+
+        if (nextIndex >= 0 && nextIndex < items.length) {
+          items[nextIndex].classList.add('active');
+          items[nextIndex].style.background = '#f0fdfa';
+          items[nextIndex].scrollIntoView({ block: 'nearest' });
+        }
+
+        return;
+      }
+
+      if (event.key === 'Enter') {
+        var activeItem = customerSearchResults.querySelector('[data-customer-id].active');
+        if (activeItem) {
+          event.preventDefault();
+          selectCustomer(
+            activeItem.getAttribute('data-customer-id'),
+            activeItem.getAttribute('data-customer-name'),
+            Number(activeItem.getAttribute('data-default-term') || 30)
+          );
+        }
+      }
+    });
+  }
+
+  // Initialize customer search on DOM ready
+  if (document.readyState !== 'loading') {
+    initCustomerSearch();
+  } else {
+    document.addEventListener('DOMContentLoaded', initCustomerSearch);
+  }
+
   // Export to namespace.
   shared.dom = dom;
   shared.state = state;
@@ -1273,11 +1581,16 @@
     restorePendingTransaction,
     deletePendingTransaction,
     updateQuickAmountPad,
+    syncCreditPaymentFields,
     playScanBeep,
     showCameraAlert,
     showCameraSuccess,
     stopCamera,
-    startCamera
+    startCamera,
+    searchCustomers,
+    renderCustomerResults,
+    selectCustomer,
+    clearCustomerSelection
   };
 
   window.POS = POS;

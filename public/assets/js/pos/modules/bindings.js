@@ -52,16 +52,6 @@
       if (removeBtn) {
         actions.removeItem(Number(removeBtn.dataset.id));
       }
-    });
-
-    if (dom.searchInput) {
-      dom.searchInput.addEventListener('input', actions.filterCards);
-      dom.searchInput.addEventListener('keydown', function(event) {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          actions.addProductFromSearch();
-        }
-      });
     }
 
     if (dom.categoryFilter) {
@@ -149,9 +139,12 @@
           actions.renderSummary();
         }
 
+        actions.syncCreditPaymentFields();
         actions.updateQuickAmountPad();
       });
     }
+
+    // Credit term sync — handled by selectCustomer() in logic.js
 
     if (dom.btnPay) {
       dom.btnPay.addEventListener('click', actions.openPaymentModal);
@@ -214,13 +207,15 @@
 
     dom.checkoutForm.addEventListener('submit', function(event) {
       const summary = actions.computeSummary();
+      const paymentMethodValue = dom.paymentMethodSelect ? String(dom.paymentMethodSelect.value || '') : '';
+      const isCredit = paymentMethodValue === 'credit';
       if (state.cart.size === 0) {
         event.preventDefault();
         actions.notify('Silakan pilih minimal satu produk sebelum menyimpan transaksi.', 'warning', 'Cart Kosong');
         return;
       }
 
-      if (summary.amountPaid < summary.grandTotal) {
+      if (!isCredit && summary.amountPaid < summary.grandTotal) {
         event.preventDefault();
         actions.notify('Jumlah bayar kurang dari grand total transaksi.', 'error', 'Pembayaran Belum Cukup').then(function() {
           if (dom.amountPaidInput) {
@@ -229,6 +224,39 @@
           }
         });
         return;
+      }
+
+      if (isCredit) {
+        const selectedCustomerId = dom.customerIdInput ? Number(dom.customerIdInput.value || 0) : 0;
+        const typedCustomerName = dom.customerSearchInput ? String(dom.customerSearchInput.value || '').trim() : '';
+        const creditTerm = dom.creditTermInput ? Number(dom.creditTermInput.value || 0) : 0;
+
+        if (selectedCustomerId <= 0 && typedCustomerName === '') {
+          event.preventDefault();
+          actions.notify('Untuk metode kredit, isi nama pelanggan atau pilih dari daftar.', 'error', 'Pelanggan Wajib').then(function() {
+            if (dom.customerSearchInput) {
+              dom.customerSearchInput.focus();
+            }
+          });
+          return;
+        }
+
+        if (Number.isNaN(creditTerm) || creditTerm < 0) {
+          event.preventDefault();
+          actions.notify('Termin kredit tidak boleh kurang dari 0 hari.', 'error', 'Termin Tidak Valid').then(function() {
+            if (dom.creditTermInput) {
+              dom.creditTermInput.focus();
+              dom.creditTermInput.select();
+            }
+          });
+          return;
+        }
+
+        if (summary.amountPaid > summary.grandTotal) {
+          event.preventDefault();
+          actions.notify('Pembayaran awal tidak boleh melebihi grand total transaksi kredit.', 'error', 'Nominal Tidak Valid');
+          return;
+        }
       }
 
       if (isSubmittingCheckout) {
@@ -257,12 +285,13 @@
       const confirmButtonText = isPrintAction ? 'Ya, simpan & cetak' : 'Ya, simpan';
       const invoiceInput = dom.checkoutForm.querySelector('input[name="invoice_no"]');
       const invoiceNo = invoiceInput ? String(invoiceInput.value || '-') : '-';
-      const paymentMethodValue = dom.paymentMethodSelect ? String(dom.paymentMethodSelect.value || '') : '';
       const paymentMethodLabel = paymentMethodValue === 'transfer'
         ? 'Transfer'
         : paymentMethodValue === 'cash'
           ? 'Tunai'
-          : '-';
+          : paymentMethodValue === 'credit'
+            ? 'Kredit'
+            : '-';
       const grandTotalLabel = actions.formatIDR(summary.grandTotal);
 
       const buildConfirmContent = function() {

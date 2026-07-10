@@ -58,6 +58,21 @@ function isDropdownActive(array $paths): string {
       <li class="<?= isMenuActive('reports/sales-daily') ?>">
         <a class="nav-link" href="<?= base_url('reports/sales-daily') ?>"><i class="fas fa-chart-line"></i> <span>Laporan Harian</span></a>
       </li>
+      <li class="<?= isMenuActive('reports/receivables-aging') ?>">
+        <a class="nav-link" href="<?= base_url('reports/receivables-aging') ?>"><i class="fas fa-hourglass-half"></i> <span>Laporan Aging Piutang</span></a>
+      </li>
+      <?php endif; ?>
+
+      <?php if (activeGroupCan('receivables.view')): ?>
+      <li class="<?= isMenuActive('receivables') ?>">
+        <a class="nav-link" href="<?= base_url('receivables') ?>"><i class="fas fa-file-invoice-dollar"></i> <span>Piutang</span></a>
+      </li>
+      <?php endif; ?>
+
+      <?php if (activeGroupCan('customers.list')): ?>
+      <li class="<?= isMenuActive('customers') && !str_contains($currentUrl, 'admin') ? 'active' : '' ?>">
+        <a class="nav-link" href="<?= base_url('customers') ?>"><i class="fas fa-users"></i> <span>Pelanggan</span></a>
+      </li>
       <?php endif; ?>
 
       <!-- Admin Menu (hanya untuk active group yang punya akses admin) -->

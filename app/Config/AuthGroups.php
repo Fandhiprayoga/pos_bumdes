@@ -80,6 +80,11 @@ class AuthGroups extends ShieldAuthGroups
         'products.edit'       => 'Dapat mengubah produk',
         'products.stock-in'   => 'Dapat menambah stok produk',
 
+        // Customer master data
+        'customers.list'   => 'Dapat melihat daftar pelanggan',
+        'customers.create' => 'Dapat menambah pelanggan baru',
+        'customers.edit'   => 'Dapat mengubah data pelanggan',
+
         // Product master data
         'masters.categories.list'   => 'Dapat melihat master kategori barang',
         'masters.categories.create' => 'Dapat menambah master kategori barang',
@@ -91,6 +96,11 @@ class AuthGroups extends ShieldAuthGroups
         // POS sales
         'sales.create'        => 'Dapat melakukan transaksi penjualan',
         'sales.list'          => 'Dapat melihat riwayat penjualan',
+
+        // Receivables
+        'receivables.view'    => 'Dapat melihat daftar piutang',
+        'receivables.collect' => 'Dapat mencatat pembayaran piutang',
+        'receivables.void'    => 'Dapat membatalkan piutang/invoice kredit',
 
         // Cash shift
         'shifts.open'         => 'Dapat membuka shift kas',
@@ -111,6 +121,7 @@ class AuthGroups extends ShieldAuthGroups
             'reports.*',
             'products.*',
             'masters.*',
+            'customers.*',
             'sales.*',
             'shifts.*',
         ],
@@ -124,6 +135,7 @@ class AuthGroups extends ShieldAuthGroups
             'reports.*',
             'products.*',
             'masters.*',
+            'customers.*',
             'sales.*',
             'shifts.*',
         ],
@@ -133,15 +145,21 @@ class AuthGroups extends ShieldAuthGroups
             'dashboard.*',
             'reports.view',
             'sales.list',
+            'receivables.view',
+            'receivables.collect',
             'products.list',
+            'customers.list',
         ],
         'cashier' => [
             'dashboard.access',
             'sales.create',
             'sales.list',
+            'receivables.view',
             'shifts.open',
             'shifts.close',
             'products.list',
+            'customers.list',
+            'customers.create',
         ],
         'user' => [
             'dashboard.access',

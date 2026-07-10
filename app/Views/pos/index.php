@@ -1385,8 +1385,21 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
             <div id="checkout-hidden-items"></div>
 
             <div class="form-group">
-              <label for="customer_name">Nama Pelanggan</label>
-              <input type="text" id="customer_name" name="customer_name" class="form-control" placeholder="Opsional">
+              <label for="customer_search_input">Pelanggan</label>
+              <div class="customer-live-search" style="position:relative;">
+                <input type="text" id="customer_search_input" name="customer_name" class="form-control" placeholder="Cari pelanggan atau ketik nama baru..." autocomplete="off">
+                <input type="hidden" id="customer_id" name="customer_id" value="">
+                <input type="hidden" id="customer_selected_name" value="">
+                <input type="hidden" id="customer_selected_term" value="30">
+                <div id="customer_search_results" class="list-group" style="position:absolute;top:100%;left:0;right:0;z-index:1050;display:none;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);border-radius:0 0 10px 10px;background:#fff;border:1px solid #d8e1ea;border-top:none;"></div>
+              </div>
+              <small class="form-text text-muted">Ketik nama pelanggan lalu pilih hasil pencarian jika ada. Nama baru akan otomatis ditambahkan ke master pelanggan. Wajib untuk metode bayar Kredit.</small>
+            </div>
+
+            <div class="form-group">
+              <label for="credit_term">Termin Kredit (hari)</label>
+              <input type="number" id="credit_term" name="credit_term" class="form-control" value="30" min="0" step="1">
+              <small class="form-text text-muted">Gunakan 7, 14, 30, atau sesuai kesepakatan.</small>
             </div>
 
             <div class="form-group">
@@ -1496,6 +1509,7 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
               <select id="payment_method" class="form-control custom-select" name="payment_method" form="checkout-form" required>
                 <option value="cash">Tunai</option>
                 <option value="transfer">Transfer</option>
+                <option value="credit">Kredit (Piutang)</option>
               </select>
             </div>
 

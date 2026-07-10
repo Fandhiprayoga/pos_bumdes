@@ -44,6 +44,8 @@ $todaySummary = $todaySummary ?? [];
 $cards = $cards ?? [];
 /** @var array<string, mixed> $stockSummary */
 $stockSummary = $stockSummary ?? [];
+/** @var array<string, mixed> $receivableSummary */
+$receivableSummary = $receivableSummary ?? [];
 /** @var array<string, mixed>|null $openShift */
 $openShift = $openShift ?? null;
 /** @var array{totals: list<array<string, mixed>>} $paymentBreakdown */
@@ -557,6 +559,9 @@ $charts = $charts ?? [];
       <span class="hero-pill"><i class="far fa-user"></i> Login sebagai <strong><?= esc($groupLabel) ?></strong></span>
       <span class="hero-pill"><i class="fas fa-receipt"></i> <?= esc($fmtNumber($todaySummary['total_tx'] ?? 0)) ?> transaksi</span>
       <span class="hero-pill"><i class="fas fa-box-open"></i> <?= esc($fmtNumber($todaySummary['items_sold'] ?? 0)) ?> item terjual</span>
+      <?php if (activeGroupCan('receivables.view')): ?>
+      <span class="hero-pill"><i class="fas fa-file-invoice-dollar"></i> Outstanding <strong><?= esc($fmtCurrency($receivableSummary['outstanding_total'] ?? 0)) ?></strong></span>
+      <?php endif; ?>
     </div>
   </div>
 
@@ -695,6 +700,15 @@ $charts = $charts ?? [];
             </div>
             <strong><?= esc($fmtNumber($stockSummary['low_stock_count'] ?? 0)) ?></strong>
           </div>
+          <?php if (activeGroupCan('receivables.view')): ?>
+          <div class="signal-item">
+            <div>
+              <strong>Piutang overdue</strong>
+              <small><?= esc($fmtCurrency($receivableSummary['overdue_total'] ?? 0)) ?> perlu tindak lanjut</small>
+            </div>
+            <strong><?= esc($fmtNumber($receivableSummary['overdue_count'] ?? 0)) ?></strong>
+          </div>
+          <?php endif; ?>
         </div>
       </div>
     </div>
@@ -868,6 +882,20 @@ $charts = $charts ?? [];
               <span class="quick-action-icon" style="background:#b45309;"><i class="fas fa-chart-line"></i></span>
               <h6>Laporan Harian</h6>
               <p>Analisis detail omzet, laba kotor, metode bayar, dan produk laris.</p>
+            </a>
+
+            <a href="<?= base_url('reports/receivables-aging') ?>" class="quick-action">
+              <span class="quick-action-icon" style="background:#0f766e;"><i class="fas fa-hourglass-half"></i></span>
+              <h6>Aging Piutang</h6>
+              <p>Pantau invoice overdue dan umur piutang untuk prioritas penagihan.</p>
+            </a>
+          <?php endif; ?>
+
+          <?php if (activeGroupCan('receivables.view')): ?>
+            <a href="<?= base_url('receivables') ?>" class="quick-action">
+              <span class="quick-action-icon" style="background:#1e40af;"><i class="fas fa-file-invoice-dollar"></i></span>
+              <h6>Daftar Piutang</h6>
+              <p>Lihat outstanding per invoice dan catat pembayaran cicilan/pelunasan.</p>
             </a>
           <?php endif; ?>
 

@@ -49,6 +49,19 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
 
     // Reports
     $routes->get('reports/sales-daily', 'SalesReportController::daily', ['filter' => 'permission:reports.view']);
+    $routes->get('reports/receivables-aging', 'ReceivableReportController::aging', ['filter' => 'permission:reports.view']);
+
+    // Customers
+    $routes->get('customers', 'CustomerController::index', ['filter' => 'permission:customers.list']);
+    $routes->get('customers/data', 'CustomerController::data', ['filter' => 'permission:customers.list']);
+    $routes->get('customers/search', 'CustomerController::search', ['filter' => 'permission:sales.create']);
+    $routes->post('customers/store', 'CustomerController::store', ['filter' => 'permission:customers.create']);
+    $routes->post('customers/update/(:num)', 'CustomerController::update/$1', ['filter' => 'permission:customers.edit']);
+
+    // Receivables
+    $routes->get('receivables', 'ReceivableController::index', ['filter' => 'permission:receivables.view']);
+    $routes->get('receivables/(:num)', 'ReceivableController::detail/$1', ['filter' => 'permission:receivables.view']);
+    $routes->post('receivables/(:num)/payments', 'ReceivablePaymentController::store/$1', ['filter' => 'permission:receivables.collect']);
 
     // ---------------------------------------------------------------
     // Admin Routes (require admin.access permission)

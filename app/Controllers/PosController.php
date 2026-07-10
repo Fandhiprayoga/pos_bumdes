@@ -3,9 +3,12 @@
 namespace App\Controllers;
 
 use App\Models\CashShiftModel;
+use App\Models\CustomerModel;
 use App\Models\PendingPosTransactionModel;
 use App\Models\ProductCategoryModel;
 use App\Models\ProductModel;
+use App\Models\ReceivableModel;
+use App\Models\ReceivablePaymentModel;
 use App\Models\SaleItemModel;
 use App\Models\SaleModel;
 use App\Models\StockMovementModel;
@@ -16,6 +19,9 @@ class PosController extends BaseController
 {
     protected ProductModel $productModel;
     protected ProductCategoryModel $productCategoryModel;
+    protected CustomerModel $customerModel;
+    protected ReceivableModel $receivableModel;
+    protected ReceivablePaymentModel $receivablePaymentModel;
     protected SaleModel $saleModel;
     protected SaleItemModel $saleItemModel;
     protected CashShiftModel $cashShiftModel;
@@ -27,6 +33,9 @@ class PosController extends BaseController
     {
         $this->productModel = new ProductModel();
         $this->productCategoryModel = new ProductCategoryModel();
+        $this->customerModel = new CustomerModel();
+        $this->receivableModel = new ReceivableModel();
+        $this->receivablePaymentModel = new ReceivablePaymentModel();
         $this->saleModel = new SaleModel();
         $this->saleItemModel = new SaleItemModel();
         $this->cashShiftModel = new CashShiftModel();
@@ -61,6 +70,10 @@ class PosController extends BaseController
             'products'    => $this->productModel
                 ->where('is_active', 1)
                 ->where('stock >', 0)
+                ->orderBy('name', 'ASC')
+                ->findAll(),
+            'customers' => $this->customerModel
+                ->where('is_active', 1)
                 ->orderBy('name', 'ASC')
                 ->findAll(),
             'recentSales' => $this->saleModel
@@ -232,6 +245,116 @@ class PosController extends BaseController
         return 'User ID ' . $userId;
     }
 
+    private function normalizeCustomerName(string $customerName): string
+    {
+        $normalized = trim($customerName);
+        if ($normalized === '') {
+            return '';
+        }
+
+        return preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+    }
+
+    /**
+     * Resolve customer from selected id or typed name.
+     * If name is provided and not found, create active customer automatically.
+     *
+     * @return array{customerId:int,customerName:string,error:?string}
+     */
+    private function resolveCustomerInput(int $customerId, string $customerName): array
+    {
+        $customerName = $this->normalizeCustomerName($customerName);
+
+        if ($customerId > 0) {
+            $existingById = $this->customerModel->find($customerId);
+            if (! $existingById) {
+                return [
+                    'customerId' => 0,
+                    'customerName' => $customerName,
+                    'error' => 'Pelanggan tidak ditemukan.',
+                ];
+            }
+
+            if ((int) ($existingById['is_active'] ?? 0) !== 1) {
+                return [
+                    'customerId' => 0,
+                    'customerName' => $customerName,
+                    'error' => 'Pelanggan tidak aktif.',
+                ];
+            }
+
+            return [
+                'customerId' => (int) $existingById['id'],
+                'customerName' => (string) ($existingById['name'] ?? ''),
+                'error' => null,
+            ];
+        }
+
+        if ($customerName === '') {
+            return [
+                'customerId' => 0,
+                'customerName' => '',
+                'error' => null,
+            ];
+        }
+
+        $existingByName = $this->customerModel
+            ->where('name', $customerName)
+            ->first();
+
+        if ($existingByName) {
+            if ((int) ($existingByName['is_active'] ?? 0) !== 1) {
+                $this->customerModel->update((int) $existingByName['id'], ['is_active' => 1]);
+                $existingByName = $this->customerModel->find((int) $existingByName['id']) ?? $existingByName;
+            }
+
+            return [
+                'customerId' => (int) $existingByName['id'],
+                'customerName' => (string) ($existingByName['name'] ?? $customerName),
+                'error' => null,
+            ];
+        }
+
+        try {
+            $newCustomerId = $this->customerModel->insert([
+                'name' => $customerName,
+                'phone' => '',
+                'address' => '',
+                'credit_limit' => 0,
+                'default_credit_term' => 30,
+                'is_active' => 1,
+            ], true);
+        } catch (\Throwable $e) {
+            $existingByName = $this->customerModel
+                ->where('name', $customerName)
+                ->first();
+
+            if (! $existingByName) {
+                return [
+                    'customerId' => 0,
+                    'customerName' => $customerName,
+                    'error' => 'Gagal menyimpan pelanggan baru.',
+                ];
+            }
+
+            $newCustomerId = (int) ($existingByName['id'] ?? 0);
+        }
+
+        if ($newCustomerId <= 0) {
+            return [
+                'customerId' => 0,
+                'customerName' => $customerName,
+                'error' => 'Gagal menyimpan pelanggan baru.',
+            ];
+        }
+
+        return [
+            'customerId' => $newCustomerId,
+            'customerName' => $customerName,
+            'error' => null,
+        ];
+    }
+
     public function checkout()
     {
         $userId = auth()->id();
@@ -299,18 +422,55 @@ class PosController extends BaseController
             $grandTotal = 0;
         }
 
-        $paymentMethod = $this->request->getPost('payment_method');
-        $allowedMethod = ['cash', 'transfer'];
+        $paymentMethod = strtolower(trim((string) $this->request->getPost('payment_method')));
+        $allowedMethod = ['cash', 'transfer', 'credit'];
         if (! in_array($paymentMethod, $allowedMethod, true)) {
             return redirect()->back()->with('error', 'Metode pembayaran tidak valid.');
         }
 
         $amountPaid = (float) ($this->request->getPost('amount_paid') ?: 0);
-        if ($amountPaid < $grandTotal) {
+        $customerId = (int) ($this->request->getPost('customer_id') ?? 0);
+        $customerName = trim((string) ($this->request->getPost('customer_name') ?? ''));
+        $resolvedCustomer = $this->resolveCustomerInput($customerId, $customerName);
+        if ($resolvedCustomer['error'] !== null) {
+            return redirect()->back()->withInput()->with('error', $resolvedCustomer['error']);
+        }
+        $customerId = (int) ($resolvedCustomer['customerId'] ?? 0);
+        $customerName = (string) ($resolvedCustomer['customerName'] ?? '');
+        $creditTerm = max(0, (int) ($this->request->getPost('credit_term') ?? 0));
+        $isCredit = $paymentMethod === 'credit';
+        $normalizedCreditTerm = $isCredit ? $creditTerm : 0;
+
+        if ($isCredit) {
+            if ($customerId <= 0) {
+                return redirect()->back()->withInput()->with('error', 'Transaksi kredit wajib mengisi pelanggan.');
+            }
+
+            $customer = $this->customerModel
+                ->where('id', $customerId)
+                ->where('is_active', 1)
+                ->first();
+
+            if (! $customer) {
+                return redirect()->back()->withInput()->with('error', 'Pelanggan kredit tidak ditemukan atau tidak aktif.');
+            }
+
+            $customerName = (string) ($customer['name'] ?? $customerName);
+
+            if ($amountPaid > $grandTotal) {
+                return redirect()->back()->withInput()->with('error', 'Pembayaran awal tidak boleh melebihi total transaksi kredit.');
+            }
+        }
+
+        if (! $isCredit && $amountPaid < $grandTotal) {
             return redirect()->back()->with('error', 'Jumlah bayar kurang dari total transaksi.');
         }
 
-        $change = $amountPaid - $grandTotal;
+        $change = $isCredit ? 0 : ($amountPaid - $grandTotal);
+        $saleStatus = ($isCredit && $amountPaid < $grandTotal) ? 'issued' : 'completed';
+        $dueDate = $normalizedCreditTerm > 0
+            ? date('Y-m-d', strtotime('+' . $normalizedCreditTerm . ' days'))
+            : null;
         $requestedInvoiceNo = strtoupper(trim((string) $this->request->getPost('invoice_no')));
         $invoiceNo = $this->resolveInvoiceNo($requestedInvoiceNo);
 
@@ -321,8 +481,12 @@ class PosController extends BaseController
             'invoice_no'     => $invoiceNo,
             'shift_id'       => $openShift['id'],
             'cashier_id'     => $userId,
-            'customer_name'  => $this->request->getPost('customer_name') ?: null,
+            'customer_name'  => $customerName !== '' ? $customerName : null,
+            'customer_id'    => $customerId > 0 ? $customerId : null,
             'payment_method' => $paymentMethod,
+            'status'         => $saleStatus,
+            'credit_term'    => $normalizedCreditTerm,
+            'due_date'       => $dueDate,
             'subtotal'       => $subtotal,
             'discount_amount'=> $discountAmount,
             'grand_total'    => $grandTotal,
@@ -377,6 +541,41 @@ class PosController extends BaseController
             ]);
         }
 
+        if ($isCredit) {
+            $receivableStatus = 'open';
+            if ($amountPaid > 0 && $amountPaid < $grandTotal) {
+                $receivableStatus = 'partial';
+            }
+            if ($grandTotal <= $amountPaid) {
+                $receivableStatus = 'settled';
+            }
+
+            $receivableId = $this->receivableModel->insert([
+                'sale_id' => $saleId,
+                'customer_id' => $customerId,
+                'credit_term' => $normalizedCreditTerm,
+                'due_date' => $dueDate,
+                'grand_total' => $grandTotal,
+                'amount_paid' => $amountPaid,
+                'outstanding' => max(0, round($grandTotal - $amountPaid, 2)),
+                'status' => $receivableStatus,
+                'notes' => 'Piutang dari transaksi POS ' . $invoiceNo,
+            ], true);
+
+            if ($amountPaid > 0) {
+                $this->receivablePaymentModel->insert([
+                    'receivable_id' => $receivableId,
+                    'payment_date' => date('Y-m-d H:i:s'),
+                    'amount' => $amountPaid,
+                    'payment_method' => 'cash',
+                    'reference_no' => 'ARDP' . date('YmdHis') . strtoupper(substr(bin2hex(random_bytes(3)), 0, 4)),
+                    'status' => 'recorded',
+                    'notes' => 'Pembayaran awal saat invoice diterbitkan',
+                    'created_by' => $userId,
+                ]);
+            }
+        }
+
         $db->transComplete();
 
         if (! $db->transStatus()) {
@@ -428,7 +627,9 @@ class PosController extends BaseController
                     'id' => (int) $pending['id'],
                     'invoice_no' => (string) $pending['invoice_no'],
                     'customer_name' => (string) ($pending['customer_name'] ?? ''),
+                    'customer_id' => (int) ($pending['customer_id'] ?? 0),
                     'payment_method' => (string) ($pending['payment_method'] ?? 'cash'),
+                    'credit_term' => (int) ($pending['credit_term'] ?? 0),
                     'discount_amount' => (float) ($pending['discount_amount'] ?? 0),
                     'amount_paid' => (float) ($pending['amount_paid'] ?? 0),
                     'subtotal_amount' => (float) ($pending['subtotal_amount'] ?? 0),
@@ -504,8 +705,37 @@ class PosController extends BaseController
         $discountAmount = max(0, (float) ($this->request->getPost('discount_amount') ?: 0));
         $grandTotal = max(0, $subtotal - $discountAmount);
         $paymentMethod = (string) ($this->request->getPost('payment_method') ?: 'cash');
-        if (! in_array($paymentMethod, ['cash', 'transfer'], true)) {
+        if (! in_array($paymentMethod, ['cash', 'transfer', 'credit'], true)) {
             $paymentMethod = 'cash';
+        }
+
+        $customerId = (int) ($this->request->getPost('customer_id') ?? 0);
+        $customerName = trim((string) ($this->request->getPost('customer_name') ?? ''));
+        $resolvedCustomer = $this->resolveCustomerInput($customerId, $customerName);
+        if ($resolvedCustomer['error'] !== null) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => $resolvedCustomer['error'],
+                'csrfHash' => csrf_hash(),
+            ]);
+        }
+        $customerId = (int) ($resolvedCustomer['customerId'] ?? 0);
+        $customerName = (string) ($resolvedCustomer['customerName'] ?? '');
+        $creditTerm = max(0, (int) ($this->request->getPost('credit_term') ?? 0));
+        if ($paymentMethod === 'credit' && $customerId <= 0) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => 'Pelanggan wajib diisi untuk transaksi kredit.',
+                'csrfHash' => csrf_hash(),
+            ]);
+        }
+
+        if ($paymentMethod === 'credit' && $creditTerm <= 0) {
+            return $this->response->setStatusCode(422)->setJSON([
+                'success' => false,
+                'message' => 'Termin kredit wajib diisi.',
+                'csrfHash' => csrf_hash(),
+            ]);
         }
 
         $requestedInvoiceNo = strtoupper(trim((string) $this->request->getPost('invoice_no')));
@@ -515,8 +745,10 @@ class PosController extends BaseController
             'user_id' => $userId,
             'shift_id' => (int) $openShift['id'],
             'invoice_no' => $invoiceNo,
-            'customer_name' => $this->request->getPost('customer_name') ?: null,
+            'customer_name' => $customerName !== '' ? $customerName : null,
+            'customer_id' => $customerId > 0 ? $customerId : null,
             'payment_method' => $paymentMethod,
+            'credit_term' => $creditTerm,
             'discount_amount' => $discountAmount,
             'amount_paid' => max(0, (float) ($this->request->getPost('amount_paid') ?: 0)),
             'subtotal_amount' => $subtotal,
@@ -599,7 +831,9 @@ class PosController extends BaseController
             'data' => [
                 'invoice_no' => (string) $pending['invoice_no'],
                 'customer_name' => (string) ($pending['customer_name'] ?? ''),
+                'customer_id' => (int) ($pending['customer_id'] ?? 0),
                 'payment_method' => (string) ($pending['payment_method'] ?? 'cash'),
+                'credit_term' => (int) ($pending['credit_term'] ?? 0),
                 'discount_amount' => (float) ($pending['discount_amount'] ?? 0),
                 'amount_paid' => (float) ($pending['amount_paid'] ?? 0),
                 'cart_items' => $cartPayload,

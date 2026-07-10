@@ -4,29 +4,22 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class SaleModel extends Model
+class ReceivablePaymentModel extends Model
 {
-    protected $table            = 'sales';
+    protected $table            = 'receivable_payments';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'invoice_no',
-        'shift_id',
-        'cashier_id',
-        'customer_name',
-        'customer_id',
+        'receivable_id',
+        'payment_date',
+        'amount',
         'payment_method',
+        'reference_no',
         'status',
-        'credit_term',
-        'due_date',
-        'subtotal',
-        'discount_amount',
-        'grand_total',
-        'amount_paid',
-        'change_amount',
-        'sold_at',
+        'notes',
+        'created_by',
     ];
 
     protected bool $allowEmptyInserts = false;

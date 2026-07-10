@@ -5,6 +5,7 @@ namespace App\Controllers;
 use App\Models\CashShiftModel;
 use App\Models\PendingPosTransactionModel;
 use App\Models\ProductModel;
+use App\Models\ReceivableModel;
 use App\Models\SaleModel;
 use Config\Database;
 
@@ -14,6 +15,7 @@ class DashboardController extends BaseController
     protected ProductModel $productModel;
     protected CashShiftModel $cashShiftModel;
     protected PendingPosTransactionModel $pendingTransactionModel;
+    protected ReceivableModel $receivableModel;
 
     public function __construct()
     {
@@ -21,6 +23,7 @@ class DashboardController extends BaseController
         $this->productModel = new ProductModel();
         $this->cashShiftModel = new CashShiftModel();
         $this->pendingTransactionModel = new PendingPosTransactionModel();
+        $this->receivableModel = new ReceivableModel();
     }
 
     public function index()
@@ -46,6 +49,7 @@ class DashboardController extends BaseController
         $topProducts = $this->getTopProducts($trendStart, $todayEnd, 6);
         $lowStockProducts = $this->getLowStockProducts(6);
         $stockSummary = $this->getStockSummary();
+        $receivableSummary = $this->getReceivableSummary();
         $pendingCount = $this->pendingTransactionModel->countAllResults();
         $openShift = $this->getOpenShiftSummary((int) auth()->id());
 
@@ -66,6 +70,10 @@ class DashboardController extends BaseController
                 'value' => (int) $stockSummary['low_stock_count'],
                 'delta' => $this->buildDelta((float) $stockSummary['low_stock_count'], 0),
             ],
+            'receivable_outstanding' => [
+                'value' => (float) ($receivableSummary['outstanding_total'] ?? 0),
+                'delta' => $this->buildDelta((float) ($receivableSummary['outstanding_total'] ?? 0), 0),
+            ],
         ];
 
         $data = [
@@ -81,6 +89,7 @@ class DashboardController extends BaseController
             'topProducts' => $topProducts,
             'lowStockProducts' => $lowStockProducts,
             'stockSummary' => $stockSummary,
+            'receivableSummary' => $receivableSummary,
             'pendingCount' => $pendingCount,
             'openShift' => $openShift,
             'charts' => [
@@ -91,6 +100,31 @@ class DashboardController extends BaseController
         ];
 
         return $this->renderView('dashboard/index', $data);
+    }
+
+    private function getReceivableSummary(): array
+    {
+        $today = date('Y-m-d');
+
+        $baseQuery = $this->receivableModel
+            ->whereNotIn('status', ['settled', 'cancelled']);
+
+        $outstanding = $baseQuery
+            ->select('COUNT(*) as total_open, COALESCE(SUM(outstanding), 0) as outstanding_total')
+            ->first() ?? [];
+
+        $overdue = $this->receivableModel
+            ->whereNotIn('status', ['settled', 'cancelled'])
+            ->where('due_date <', $today)
+            ->select('COUNT(*) as overdue_count, COALESCE(SUM(outstanding), 0) as overdue_total')
+            ->first() ?? [];
+
+        return [
+            'total_open' => (int) ($outstanding['total_open'] ?? 0),
+            'outstanding_total' => (float) ($outstanding['outstanding_total'] ?? 0),
+            'overdue_count' => (int) ($overdue['overdue_count'] ?? 0),
+            'overdue_total' => (float) ($overdue['overdue_total'] ?? 0),
+        ];
     }
 
     private function getSalesSummary(string $fromDateTime, string $toDateTime): array

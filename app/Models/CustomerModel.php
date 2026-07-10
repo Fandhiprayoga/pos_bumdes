@@ -4,29 +4,20 @@ namespace App\Models;
 
 use CodeIgniter\Model;
 
-class SaleModel extends Model
+class CustomerModel extends Model
 {
-    protected $table            = 'sales';
+    protected $table            = 'customers';
     protected $primaryKey       = 'id';
     protected $useAutoIncrement = true;
     protected $returnType       = 'array';
     protected $protectFields    = true;
     protected $allowedFields    = [
-        'invoice_no',
-        'shift_id',
-        'cashier_id',
-        'customer_name',
-        'customer_id',
-        'payment_method',
-        'status',
-        'credit_term',
-        'due_date',
-        'subtotal',
-        'discount_amount',
-        'grand_total',
-        'amount_paid',
-        'change_amount',
-        'sold_at',
+        'name',
+        'phone',
+        'address',
+        'credit_limit',
+        'default_credit_term',
+        'is_active',
     ];
 
     protected bool $allowEmptyInserts = false;
