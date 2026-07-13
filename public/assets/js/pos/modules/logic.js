@@ -17,6 +17,15 @@
     hiddenItemsWrap: document.getElementById('checkout-hidden-items'),
     customerSearchInput: document.getElementById('customer_search_input'),
     customerIdInput: document.getElementById('customer_id'),
+    customerPickerOpenButton: document.getElementById('btn-open-customer-picker'),
+    customerPickerInlineButton: document.getElementById('btn-open-customer-picker-inline'),
+    customerShortcutGeneral: document.getElementById('customer-shortcut-general'),
+    customerShortcutRecent: document.getElementById('customer-shortcut-recent'),
+    customerShortcutFavorites: document.getElementById('customer-shortcut-favorites'),
+    customerPickerModal: document.getElementById('customerPickerModal'),
+    customerPickerSearchInput: document.getElementById('customer-picker-search-input'),
+    customerPickerShortcuts: document.getElementById('customer-picker-shortcuts'),
+    customerPickerResults: document.getElementById('customer-picker-results'),
     creditTermInput: document.getElementById('credit_term'),
     discountInput: document.getElementById('discount_amount'),
     amountPaidInput: document.getElementById('amount_paid'),
@@ -70,6 +79,11 @@
     html5QrCode: null,
     lastScannedCode: '',
     lastScannedAt: 0,
+    customerDirectory: [],
+    generalCustomer: null,
+    recentCustomers: [],
+    favoriteCustomers: [],
+    customerPickerResults: [],
     isMac: /Mac|iPhone|iPad|iPod/i.test(navigator.platform || ''),
     modKeyLabel: /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '') ? 'Cmd' : 'Ctrl'
   };
@@ -708,6 +722,7 @@
 
     syncAmountPaidDisplay(false);
     syncCreditPaymentFields();
+    renderCustomerShortcuts();
     renderCart();
     focusSearchField(true);
   }
@@ -968,6 +983,7 @@
         if (dom.amountPaidValueInput) {
           dom.amountPaidValueInput.value = String(payload.data.amount_paid || 0);
         }
+        renderCustomerShortcuts();
         setCurrentInvoiceNo(payload.data.invoice_no || payload.nextInvoiceNo || '');
         renderCart();
         syncAmountPaidDisplay(false);
@@ -1312,6 +1328,264 @@
   var customerSelectedName = document.getElementById('customer_selected_name');
   var customerSelectedTerm = document.getElementById('customer_selected_term');
 
+  function normalizeCustomerRecord(customer) {
+    if (!customer || typeof customer !== 'object') {
+      return null;
+    }
+
+    var normalizedName = String(customer.name || '').trim();
+    if (normalizedName === '') {
+      return null;
+    }
+
+    return {
+      id: Number(customer.id || 0),
+      name: normalizedName,
+      phone: String(customer.phone || '').trim(),
+      default_credit_term: Math.max(0, Number(customer.default_credit_term || 30)),
+      is_favorite: Number(customer.is_favorite || 0) === 1 ? 1 : 0,
+      last_used_at: customer.last_used_at ? String(customer.last_used_at) : ''
+    };
+  }
+
+  function getCustomerKey(customer) {
+    if (!customer) {
+      return '';
+    }
+
+    if (Number(customer.id || 0) > 0) {
+      return 'id:' + String(customer.id);
+    }
+
+    return 'name:' + String(customer.name || '').trim().toLowerCase();
+  }
+
+  function getSelectedCustomerKey() {
+    var selectedId = customerIdInput ? Number(customerIdInput.value || 0) : 0;
+    if (selectedId > 0) {
+      return 'id:' + String(selectedId);
+    }
+
+    var selectedName = customerSearchInput ? String(customerSearchInput.value || '').trim() : '';
+    if (selectedName === '') {
+      return '';
+    }
+
+    return 'name:' + selectedName.toLowerCase();
+  }
+
+  function buildCustomerButtonHtml(customer, options) {
+    var item = normalizeCustomerRecord(customer);
+    if (!item) {
+      return '';
+    }
+
+    var settings = options || {};
+    var selectedKey = getSelectedCustomerKey();
+    var isSelected = selectedKey !== '' && selectedKey === getCustomerKey(item);
+    var cardClass = settings.variant === 'card' ? 'customer-picker-card' : 'customer-pill';
+    var modifierClass = settings.isPrimary ? ' is-primary' : '';
+    var selectedClass = isSelected ? ' is-selected' : '';
+    var metaParts = [];
+
+    if (item.phone !== '') {
+      metaParts.push(escapeHtml(item.phone));
+    }
+    if (item.last_used_at) {
+      metaParts.push('Dipakai ' + escapeHtml(formatDateTime(item.last_used_at)));
+    }
+    if (metaParts.length === 0) {
+      metaParts.push(item.id > 0 ? 'Pilih pelanggan terdaftar' : 'Pelanggan cepat');
+    }
+
+    var badges = '';
+    if (settings.variant === 'card') {
+      var badgeItems = [];
+      if (settings.badges && settings.badges.length) {
+        settings.badges.forEach(function(badge) {
+          badgeItems.push('<span class="customer-picker-badge ' + escapeHtml(badge.className || '') + '">' + escapeHtml(badge.label || '') + '</span>');
+        });
+      }
+      if (badgeItems.length > 0) {
+        badges = '<div class="customer-picker-badges">' + badgeItems.join('') + '</div>';
+      }
+    }
+
+    return '' +
+      '<button type="button" class="js-customer-select ' + cardClass + modifierClass + selectedClass + '"' +
+      ' data-customer-id="' + escapeHtml(String(item.id)) + '"' +
+      ' data-customer-name="' + escapeHtml(item.name) + '"' +
+      ' data-default-term="' + escapeHtml(String(item.default_credit_term || 30)) + '">' +
+      '  <span class="' + (settings.variant === 'card' ? 'customer-picker-name' : 'customer-pill-title') + '">' + escapeHtml(item.name) + '</span>' +
+      '  <span class="' + (settings.variant === 'card' ? 'customer-picker-meta' : 'customer-pill-meta') + '">' + metaParts.join(' &bull; ') + '</span>' +
+      badges +
+      '</button>';
+  }
+
+  function renderCustomerShortcutRow(element, customers, emptyMessage, options) {
+    if (!element) {
+      return;
+    }
+
+    var items = Array.isArray(customers) ? customers : [];
+    if (items.length === 0) {
+      element.innerHTML = '<div class="customer-shortcut-empty">' + escapeHtml(emptyMessage) + '</div>';
+      return;
+    }
+
+    element.innerHTML = items.map(function(customer) {
+      return buildCustomerButtonHtml(customer, options);
+    }).join('');
+  }
+
+  function buildPickerShortcutCustomers() {
+    var bucket = [];
+    var seen = {};
+
+    function pushCustomer(customer, badge) {
+      var item = normalizeCustomerRecord(customer);
+      if (!item) {
+        return;
+      }
+
+      var key = getCustomerKey(item);
+      if (!seen[key]) {
+        seen[key] = {
+          customer: item,
+          badges: []
+        };
+        bucket.push(seen[key]);
+      }
+
+      if (badge) {
+        seen[key].badges.push(badge);
+      }
+    }
+
+    pushCustomer(state.generalCustomer, { label: 'Umum', className: 'is-term' });
+    state.favoriteCustomers.forEach(function(customer) {
+      pushCustomer(customer, { label: 'Favorit', className: 'is-favorite' });
+    });
+    state.recentCustomers.forEach(function(customer) {
+      pushCustomer(customer, { label: 'Terakhir', className: 'is-term' });
+    });
+
+    return bucket;
+  }
+
+  function renderCustomerPickerShortcuts() {
+    if (!dom.customerPickerShortcuts) {
+      return;
+    }
+
+    var items = buildPickerShortcutCustomers();
+    if (items.length === 0) {
+      dom.customerPickerShortcuts.innerHTML = '<div class="customer-picker-empty">Belum ada shortcut pelanggan yang bisa ditampilkan.</div>';
+      return;
+    }
+
+    dom.customerPickerShortcuts.innerHTML = items.map(function(entry) {
+      return buildCustomerButtonHtml(entry.customer, {
+        variant: 'card',
+        badges: entry.badges,
+        isPrimary: Number(entry.customer.id || 0) > 0 && String(entry.customer.name || '').toLowerCase() === 'pelanggan umum'
+      });
+    }).join('');
+  }
+
+  function filterCustomerDirectory(query) {
+    var keyword = String(query || '').trim().toLowerCase();
+    if (keyword === '') {
+      return state.customerDirectory.slice(0, 24);
+    }
+
+    return state.customerDirectory.filter(function(customer) {
+      var haystack = [customer.name, customer.phone].join(' ').toLowerCase();
+      return haystack.indexOf(keyword) !== -1;
+    }).slice(0, 30);
+  }
+
+  function renderCustomerPickerResults(results) {
+    if (!dom.customerPickerResults) {
+      return;
+    }
+
+    var items = Array.isArray(results) ? results : [];
+    if (items.length === 0) {
+      dom.customerPickerResults.innerHTML = '<div class="customer-picker-empty">Pelanggan tidak ditemukan. Anda masih bisa mengetik nama baru manual di form checkout.</div>';
+      return;
+    }
+
+    dom.customerPickerResults.innerHTML = items.map(function(customer) {
+      var badges = [];
+      if (Number(customer.is_favorite || 0) === 1) {
+        badges.push({ label: 'Favorit', className: 'is-favorite' });
+      }
+
+      return buildCustomerButtonHtml(customer, {
+        variant: 'card',
+        badges: badges,
+        isPrimary: Number(customer.id || 0) > 0 && String(customer.name || '').toLowerCase() === 'pelanggan umum'
+      });
+    }).join('');
+  }
+
+  function renderCustomerShortcuts() {
+    var generalList = state.generalCustomer ? [state.generalCustomer] : [];
+    renderCustomerShortcutRow(dom.customerShortcutGeneral, generalList, 'Pelanggan Umum belum tersedia.', { isPrimary: true });
+    renderCustomerShortcutRow(dom.customerShortcutRecent, state.recentCustomers, 'Belum ada pelanggan terakhir.', {});
+    renderCustomerShortcutRow(dom.customerShortcutFavorites, state.favoriteCustomers, 'Belum ada pelanggan favorit.', {});
+    renderCustomerPickerShortcuts();
+    renderCustomerPickerResults(state.customerPickerResults);
+  }
+
+  function syncCustomerPickerResults(query) {
+    state.customerPickerResults = filterCustomerDirectory(query);
+    renderCustomerPickerResults(state.customerPickerResults);
+  }
+
+  function hydrateCustomerPickerData() {
+    var bootstrap = window.POS_BOOTSTRAP || {};
+    state.customerDirectory = Array.isArray(bootstrap.directory)
+      ? bootstrap.directory.map(normalizeCustomerRecord).filter(Boolean)
+      : [];
+    state.generalCustomer = normalizeCustomerRecord(bootstrap.generalCustomer);
+    state.favoriteCustomers = Array.isArray(bootstrap.favoriteCustomers)
+      ? bootstrap.favoriteCustomers.map(normalizeCustomerRecord).filter(Boolean)
+      : [];
+    state.recentCustomers = Array.isArray(bootstrap.recentCustomers)
+      ? bootstrap.recentCustomers.map(normalizeCustomerRecord).filter(Boolean)
+      : [];
+    state.customerPickerResults = state.customerDirectory.slice(0, 24);
+    renderCustomerShortcuts();
+  }
+
+  function openCustomerPicker() {
+    if (!dom.customerPickerModal || typeof $ === 'undefined') {
+      return;
+    }
+
+    var currentQuery = dom.customerSearchInput ? String(dom.customerSearchInput.value || '').trim() : '';
+    if (dom.customerPickerSearchInput) {
+      dom.customerPickerSearchInput.value = currentQuery;
+    }
+    syncCustomerPickerResults(currentQuery);
+    $(dom.customerPickerModal).modal('show');
+  }
+
+  function closeCustomerPicker() {
+    if (!dom.customerPickerModal || typeof $ === 'undefined') {
+      return;
+    }
+
+    $(dom.customerPickerModal).modal('hide');
+  }
+
+  function searchCustomersLocal(query) {
+    syncCustomerPickerResults(query);
+    return state.customerPickerResults;
+  }
+
   function searchCustomers(query) {
     if (customerSearchResults) {
       customerSearchResults.innerHTML = '<div class="list-group-item text-muted text-center small py-2">Mencari...</div>';
@@ -1384,6 +1658,13 @@
     if (dom.creditTermInput && defaultTerm > 0) {
       dom.creditTermInput.value = String(defaultTerm);
     }
+
+    if (dom.customerPickerSearchInput) {
+      dom.customerPickerSearchInput.value = name || '';
+    }
+    syncCustomerPickerResults(name || '');
+    renderCustomerShortcuts();
+    closeCustomerPicker();
   }
 
   function clearCustomerSelection(keepSearchInput) {
@@ -1403,6 +1684,13 @@
     if (!keepSearchInput && customerSearchInput) {
       customerSearchInput.value = '';
     }
+
+    if (!keepSearchInput && dom.customerPickerSearchInput) {
+      dom.customerPickerSearchInput.value = '';
+    }
+
+    syncCustomerPickerResults(keepSearchInput && customerSearchInput ? customerSearchInput.value : '');
+    renderCustomerShortcuts();
   }
 
   function initCustomerSearch() {
@@ -1526,9 +1814,13 @@
 
   // Initialize customer search on DOM ready
   if (document.readyState !== 'loading') {
+    hydrateCustomerPickerData();
     initCustomerSearch();
   } else {
-    document.addEventListener('DOMContentLoaded', initCustomerSearch);
+    document.addEventListener('DOMContentLoaded', function() {
+      hydrateCustomerPickerData();
+      initCustomerSearch();
+    });
   }
 
   // Export to namespace.
@@ -1588,7 +1880,11 @@
     stopCamera,
     startCamera,
     searchCustomers,
+    searchCustomersLocal,
     renderCustomerResults,
+    renderCustomerShortcuts,
+    openCustomerPicker,
+    closeCustomerPicker,
     selectCustomer,
     clearCustomerSelection
   };

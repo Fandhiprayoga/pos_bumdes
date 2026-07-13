@@ -229,24 +229,12 @@
       if (isCredit) {
         const selectedCustomerId = dom.customerIdInput ? Number(dom.customerIdInput.value || 0) : 0;
         const typedCustomerName = dom.customerSearchInput ? String(dom.customerSearchInput.value || '').trim() : '';
-        const creditTerm = dom.creditTermInput ? Number(dom.creditTermInput.value || 0) : 0;
 
         if (selectedCustomerId <= 0 && typedCustomerName === '') {
           event.preventDefault();
           actions.notify('Untuk metode kredit, isi nama pelanggan atau pilih dari daftar.', 'error', 'Pelanggan Wajib').then(function() {
             if (dom.customerSearchInput) {
               dom.customerSearchInput.focus();
-            }
-          });
-          return;
-        }
-
-        if (Number.isNaN(creditTerm) || creditTerm < 0) {
-          event.preventDefault();
-          actions.notify('Termin kredit tidak boleh kurang dari 0 hari.', 'error', 'Termin Tidak Valid').then(function() {
-            if (dom.creditTermInput) {
-              dom.creditTermInput.focus();
-              dom.creditTermInput.select();
             }
           });
           return;
@@ -385,6 +373,47 @@
         dom.checkoutForm.submit();
       }
     });
+  }
+
+  function bindCustomerEvents() {
+    function bindCustomerSelection(container) {
+      if (!container) {
+        return;
+      }
+
+      container.addEventListener('click', function(event) {
+        const button = event.target.closest('.js-customer-select');
+        if (!button) {
+          return;
+        }
+
+        actions.selectCustomer(
+          Number(button.dataset.customerId || 0),
+          String(button.dataset.customerName || ''),
+          Number(button.dataset.defaultTerm || 30)
+        );
+      });
+    }
+
+    if (dom.customerPickerOpenButton) {
+      dom.customerPickerOpenButton.addEventListener('click', actions.openCustomerPicker);
+    }
+
+    if (dom.customerPickerInlineButton) {
+      dom.customerPickerInlineButton.addEventListener('click', actions.openCustomerPicker);
+    }
+
+    if (dom.customerPickerSearchInput) {
+      dom.customerPickerSearchInput.addEventListener('input', function() {
+        actions.searchCustomersLocal(String(dom.customerPickerSearchInput.value || ''));
+      });
+    }
+
+    bindCustomerSelection(dom.customerShortcutGeneral);
+    bindCustomerSelection(dom.customerShortcutRecent);
+    bindCustomerSelection(dom.customerShortcutFavorites);
+    bindCustomerSelection(dom.customerPickerShortcuts);
+    bindCustomerSelection(dom.customerPickerResults);
   }
 
   function bindDrawerAndKeyboardEvents() {
@@ -533,6 +562,19 @@
       }
     }
 
+    if (dom.customerPickerModal && typeof $ !== 'undefined') {
+      if (dom.customerPickerModal.parentElement !== document.body) {
+        document.body.appendChild(dom.customerPickerModal);
+      }
+
+      $(dom.customerPickerModal).on('shown.bs.modal', function() {
+        if (dom.customerPickerSearchInput) {
+          dom.customerPickerSearchInput.focus();
+          dom.customerPickerSearchInput.select();
+        }
+      });
+    }
+
     if (dom.paymentModal && typeof $ !== 'undefined') {
       if (dom.paymentModal.parentElement !== document.body) {
         document.body.appendChild(dom.paymentModal);
@@ -621,6 +663,7 @@
   function init() {
     bindCatalogEvents();
     bindPaymentEvents();
+    bindCustomerEvents();
     bindDrawerAndKeyboardEvents();
     bindModalEvents();
 

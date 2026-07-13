@@ -18,6 +18,7 @@ class CustomerModel extends Model
         'credit_limit',
         'default_credit_term',
         'is_active',
+        'is_favorite',
     ];
 
     protected bool $allowEmptyInserts = false;

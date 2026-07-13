@@ -175,6 +175,7 @@
                   <th>Telepon</th>
                   <th>Limit Kredit</th>
                   <th>Termin</th>
+                  <th>Favorit</th>
                   <th>Status</th>
                   <th>Aksi</th>
                 </tr>
@@ -229,6 +230,10 @@
             <input type="checkbox" class="custom-control-input" id="add-customer-active" name="is_active" value="1" checked>
             <label class="custom-control-label" for="add-customer-active">Pelanggan aktif</label>
           </div>
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="add-customer-favorite" name="is_favorite" value="1">
+            <label class="custom-control-label" for="add-customer-favorite">Tandai sebagai pelanggan favorit</label>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
@@ -279,6 +284,10 @@
             <input type="checkbox" class="custom-control-input" id="edit-customer-active" name="is_active" value="1">
             <label class="custom-control-label" for="edit-customer-active">Pelanggan aktif</label>
           </div>
+          <div class="custom-control custom-checkbox mt-2">
+            <input type="checkbox" class="custom-control-input" id="edit-customer-favorite" name="is_favorite" value="1">
+            <label class="custom-control-label" for="edit-customer-favorite">Tandai sebagai pelanggan favorit</label>
+          </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Batal</button>
@@ -304,6 +313,7 @@
   var editCustomerCreditLimit = document.getElementById('edit-customer-credit-limit');
   var editCustomerDefaultTerm = document.getElementById('edit-customer-default-term');
   var editCustomerActive = document.getElementById('edit-customer-active');
+  var editCustomerFavorite = document.getElementById('edit-customer-favorite');
 
   var addCustomerModal = document.getElementById('addCustomerModal');
   if (addCustomerModal && addCustomerModal.parentElement !== document.body) {
@@ -324,7 +334,7 @@
     var totalLimit = 0;
 
     rows.forEach(function(row) {
-      var statusCell = String((row && row[5]) || '');
+      var statusCell = String((row && row[6]) || '');
       if (statusCell.indexOf('badge-success') !== -1) {
         active++;
       }
@@ -362,8 +372,8 @@
       pageLength: 10,
       order: [[1, 'asc']],
       columnDefs: [
-        { targets: [2, 3, 4, 5, 6], orderable: false },
-        { targets: [2, 3, 4, 5, 6], searchable: false },
+        { targets: [2, 3, 4, 5, 6, 7], orderable: false },
+        { targets: [2, 3, 4, 5, 6, 7], searchable: false },
       ],
       language: {
         emptyTable: 'Belum ada data pelanggan.',
@@ -390,6 +400,7 @@
     var customerAddress = button.getAttribute('data-customer-address') || '';
     var customerCreditLimit = button.getAttribute('data-customer-credit-limit') || '0';
     var customerDefaultTerm = button.getAttribute('data-customer-default-term') || '0';
+    var customerFavorite = button.getAttribute('data-customer-favorite') || '0';
     var customerActive = button.getAttribute('data-customer-active') || '0';
 
     editCustomerForm.setAttribute('action', '<?= base_url('customers/update') ?>/' + customerId);
@@ -398,6 +409,7 @@
     if (editCustomerAddress) editCustomerAddress.value = customerAddress;
     if (editCustomerCreditLimit) editCustomerCreditLimit.value = customerCreditLimit;
     if (editCustomerDefaultTerm) editCustomerDefaultTerm.value = customerDefaultTerm;
+    if (editCustomerFavorite) editCustomerFavorite.checked = customerFavorite === '1';
     if (editCustomerActive) editCustomerActive.checked = customerActive === '1';
   });
 })();

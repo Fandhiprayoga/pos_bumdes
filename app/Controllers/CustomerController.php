@@ -43,6 +43,9 @@ class CustomerController extends BaseController
 
             $defaultTerm = (int) ($customer['default_credit_term'] ?? 0);
             $termHtml = $defaultTerm > 0 ? $defaultTerm . ' hari' : '<span class="text-muted">-</span>';
+            $favoriteHtml = (int) ($customer['is_favorite'] ?? 0) === 1
+                ? '<span class="badge badge-warning"><i class="fas fa-star mr-1"></i>Favorit</span>'
+                : '<span class="text-muted">-</span>';
 
             $actionHtml = '';
             if ($canEdit) {
@@ -53,6 +56,7 @@ class CustomerController extends BaseController
                     . ' data-customer-address="' . esc((string) ($customer['address'] ?? '')) . '"'
                     . ' data-customer-credit-limit="' . (int) ($customer['credit_limit'] ?? 0) . '"'
                     . ' data-customer-default-term="' . (int) ($customer['default_credit_term'] ?? 0) . '"'
+                        . ' data-customer-favorite="' . (int) ($customer['is_favorite'] ?? 0) . '"'
                     . ' data-customer-active="' . (int) $customer['is_active'] . '">'
                     . '<i class="fas fa-edit"></i></button>';
             }
@@ -63,6 +67,7 @@ class CustomerController extends BaseController
                 esc((string) ($customer['phone'] ?? '-')),
                 $creditLimitHtml,
                 $termHtml,
+                $favoriteHtml,
                 $statusHtml,
                 $actionHtml,
             ];
@@ -92,6 +97,7 @@ class CustomerController extends BaseController
             'credit_limit'       => (int) ($this->request->getPost('credit_limit') ?? 0),
             'default_credit_term' => (int) ($this->request->getPost('default_credit_term') ?? 0),
             'is_active'          => $this->request->getPost('is_active') ? 1 : 0,
+            'is_favorite'        => $this->request->getPost('is_favorite') ? 1 : 0,
         ]);
 
         return redirect()->to('/customers')->with('success', 'Pelanggan berhasil ditambahkan.');
@@ -124,6 +130,7 @@ class CustomerController extends BaseController
             'credit_limit'       => (int) ($this->request->getPost('credit_limit') ?? 0),
             'default_credit_term' => (int) ($this->request->getPost('default_credit_term') ?? 0),
             'is_active'          => $this->request->getPost('is_active') ? 1 : 0,
+            'is_favorite'        => $this->request->getPost('is_favorite') ? 1 : 0,
         ]);
 
         return redirect()->to('/customers')->with('success', 'Data pelanggan berhasil diperbarui.');
@@ -156,6 +163,7 @@ class CustomerController extends BaseController
                 'phone'              => (string) ($c['phone'] ?? ''),
                 'credit_limit'       => (int) ($c['credit_limit'] ?? 0),
                 'default_credit_term' => (int) ($c['default_credit_term'] ?? 30),
+                'is_favorite'        => (int) ($c['is_favorite'] ?? 0),
             ];
         }, $customers);
 

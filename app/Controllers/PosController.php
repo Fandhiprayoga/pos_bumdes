@@ -57,6 +57,17 @@ class PosController extends BaseController
             return $this->shift();
         }
 
+        $customers = $this->customerModel
+            ->where('is_active', 1)
+            ->orderBy('name', 'ASC')
+            ->findAll();
+
+        $recentSales = $this->saleModel
+            ->where('cashier_id', $userId)
+            ->orderBy('id', 'DESC')
+            ->limit(10)
+            ->findAll();
+
         $data = [
             'title'       => 'POS Kasir',
             'page_title'  => 'POS Kasir',
@@ -72,15 +83,11 @@ class PosController extends BaseController
                 ->where('stock >', 0)
                 ->orderBy('name', 'ASC')
                 ->findAll(),
-            'customers' => $this->customerModel
-                ->where('is_active', 1)
-                ->orderBy('name', 'ASC')
-                ->findAll(),
-            'recentSales' => $this->saleModel
-                ->where('cashier_id', $userId)
-                ->orderBy('id', 'DESC')
-                ->limit(10)
-                ->findAll(),
+            'customers' => $customers,
+            'recentSales' => $recentSales,
+            'generalCustomer' => $this->findGeneralCustomer($customers),
+            'favoriteCustomers' => $this->extractFavoriteCustomers($customers),
+            'recentCustomers' => $this->extractRecentCustomers($recentSales, $customers),
         ];
 
         return $this->renderView('pos/index', $data);
@@ -253,6 +260,89 @@ class PosController extends BaseController
         }
 
         return preg_replace('/\s+/', ' ', $normalized) ?? $normalized;
+    }
+
+    private function serializePosCustomer(array $customer, ?string $lastUsedAt = null): array
+    {
+        return [
+            'id' => (int) ($customer['id'] ?? 0),
+            'name' => (string) ($customer['name'] ?? ''),
+            'phone' => (string) ($customer['phone'] ?? ''),
+            'default_credit_term' => (int) ($customer['default_credit_term'] ?? 30),
+            'is_favorite' => (int) ($customer['is_favorite'] ?? 0),
+            'last_used_at' => $lastUsedAt,
+        ];
+    }
+
+    private function findGeneralCustomer(array $customers): ?array
+    {
+        foreach ($customers as $customer) {
+            if (strcasecmp((string) ($customer['name'] ?? ''), 'Pelanggan Umum') === 0) {
+                return $this->serializePosCustomer($customer);
+            }
+        }
+
+        return null;
+    }
+
+    private function extractFavoriteCustomers(array $customers): array
+    {
+        $favorites = array_filter($customers, static function (array $customer): bool {
+            return (int) ($customer['is_favorite'] ?? 0) === 1;
+        });
+
+        return array_values(array_map(function (array $customer): array {
+            return $this->serializePosCustomer($customer);
+        }, $favorites));
+    }
+
+    private function extractRecentCustomers(array $recentSales, array $customers): array
+    {
+        $customersById = [];
+        foreach ($customers as $customer) {
+            $customersById[(int) ($customer['id'] ?? 0)] = $customer;
+        }
+
+        $recentCustomers = [];
+        $seen = [];
+
+        foreach ($recentSales as $sale) {
+            $customerId = (int) ($sale['customer_id'] ?? 0);
+            $customerName = $this->normalizeCustomerName((string) ($sale['customer_name'] ?? ''));
+            $lastUsedAt = (string) ($sale['sold_at'] ?? $sale['created_at'] ?? '');
+
+            if ($customerId > 0 && isset($customersById[$customerId])) {
+                $key = 'id:' . $customerId;
+                if (isset($seen[$key])) {
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $recentCustomers[] = $this->serializePosCustomer($customersById[$customerId], $lastUsedAt);
+                continue;
+            }
+
+            if ($customerName === '') {
+                continue;
+            }
+
+            $key = 'name:' . mb_strtolower($customerName);
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $recentCustomers[] = [
+                'id' => 0,
+                'name' => $customerName,
+                'phone' => '',
+                'default_credit_term' => max(0, (int) ($sale['credit_term'] ?? 30)),
+                'is_favorite' => 0,
+                'last_used_at' => $lastUsedAt,
+            ];
+        }
+
+        return $recentCustomers;
     }
 
     /**
@@ -437,9 +527,9 @@ class PosController extends BaseController
         }
         $customerId = (int) ($resolvedCustomer['customerId'] ?? 0);
         $customerName = (string) ($resolvedCustomer['customerName'] ?? '');
-        $creditTerm = max(0, (int) ($this->request->getPost('credit_term') ?? 0));
         $isCredit = $paymentMethod === 'credit';
-        $normalizedCreditTerm = $isCredit ? $creditTerm : 0;
+        $creditTerm = max(0, (int) ($this->request->getPost('credit_term') ?? 0));
+        $normalizedCreditTerm = $isCredit ? max(30, $creditTerm) : 0;
 
         if ($isCredit) {
             if ($customerId <= 0) {
@@ -456,6 +546,7 @@ class PosController extends BaseController
             }
 
             $customerName = (string) ($customer['name'] ?? $customerName);
+            $normalizedCreditTerm = max(30, (int) ($customer['default_credit_term'] ?? 30), $creditTerm);
 
             if ($amountPaid > $grandTotal) {
                 return redirect()->back()->withInput()->with('error', 'Pembayaran awal tidak boleh melebihi total transaksi kredit.');
@@ -730,12 +821,9 @@ class PosController extends BaseController
             ]);
         }
 
-        if ($paymentMethod === 'credit' && $creditTerm <= 0) {
-            return $this->response->setStatusCode(422)->setJSON([
-                'success' => false,
-                'message' => 'Termin kredit wajib diisi.',
-                'csrfHash' => csrf_hash(),
-            ]);
+        if ($paymentMethod === 'credit') {
+            $creditCustomer = $customerId > 0 ? $this->customerModel->find($customerId) : null;
+            $creditTerm = max(30, (int) ($creditCustomer['default_credit_term'] ?? 30), $creditTerm);
         }
 
         $requestedInvoiceNo = strtoupper(trim((string) $this->request->getPost('invoice_no')));

@@ -1,7 +1,28 @@
 <?php
 $products = isset($products) && is_array($products) ? $products : [];
 $categories = isset($categories) && is_array($categories) ? $categories : [];
+$customers = isset($customers) && is_array($customers) ? $customers : [];
+$generalCustomer = isset($generalCustomer) && is_array($generalCustomer) ? $generalCustomer : null;
+$favoriteCustomers = isset($favoriteCustomers) && is_array($favoriteCustomers) ? $favoriteCustomers : [];
+$recentCustomers = isset($recentCustomers) && is_array($recentCustomers) ? $recentCustomers : [];
 $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
+
+$customerDirectory = array_map(static function (array $customer): array {
+  return [
+    'id' => (int) ($customer['id'] ?? 0),
+    'name' => (string) ($customer['name'] ?? ''),
+    'phone' => (string) ($customer['phone'] ?? ''),
+    'default_credit_term' => (int) ($customer['default_credit_term'] ?? 30),
+    'is_favorite' => (int) ($customer['is_favorite'] ?? 0),
+  ];
+}, $customers);
+
+$customerBootstrap = [
+  'directory' => $customerDirectory,
+  'generalCustomer' => $generalCustomer,
+  'favoriteCustomers' => $favoriteCustomers,
+  'recentCustomers' => $recentCustomers,
+];
 ?>
 <?php $this->section('css') ?>
 <style>
@@ -1226,6 +1247,197 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
       grid-template-columns: 1fr;
     }
   }
+
+  .pos-modern .customer-pill,
+  .pos-modern .customer-picker-card {
+    border: 1px solid #d8e1ea;
+    background: #fff;
+    color: #0f172a;
+  }
+
+  .pos-modern .customer-pill {
+    min-width: 150px;
+    border-radius: 14px;
+    padding: 10px 12px;
+    text-align: left;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.04);
+  }
+
+  .pos-modern .customer-pill.is-primary {
+    border-color: #99f6e4;
+    background: linear-gradient(135deg, #ecfeff 0%, #f0fdfa 100%);
+  }
+
+  .pos-modern .customer-pill.is-selected,
+  .pos-modern .customer-picker-card.is-selected {
+    border-color: #0f766e;
+    box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.12);
+  }
+
+  .pos-modern .customer-pill-title,
+  .pos-modern .customer-picker-name {
+    display: block;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.3;
+  }
+
+  .pos-modern .customer-pill-meta,
+  .pos-modern .customer-picker-meta {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #64748b;
+    line-height: 1.4;
+  }
+
+  .pos-modern .customer-field-actions {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .pos-modern .customer-field-actions .form-control {
+    flex: 1;
+  }
+
+  .pos-modern .btn-customer-picker {
+    border-radius: 10px;
+    min-width: 110px;
+    font-weight: 700;
+  }
+
+  .pos-modern .customer-picker-modal .modal-dialog {
+    max-width: 100vw;
+    margin: 0;
+    min-height: 100vh;
+  }
+
+  .pos-modern .customer-picker-modal .modal-content {
+    min-height: 100vh;
+    border: 0;
+    border-radius: 0;
+    background: linear-gradient(180deg, #f8fafc 0%, #ffffff 28%);
+  }
+
+  .pos-modern .customer-picker-header {
+    padding: 18px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.95);
+  }
+
+  .pos-modern .customer-picker-search {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    padding: 16px 20px 12px;
+    background: rgba(248, 250, 252, 0.98);
+    border-bottom: 1px solid #e2e8f0;
+  }
+
+  .pos-modern .customer-picker-search .form-control {
+    min-height: 52px;
+    font-size: 16px;
+    border-radius: 14px;
+  }
+
+  .pos-modern .customer-picker-body {
+    padding: 0 20px 20px;
+    overflow-y: auto;
+  }
+
+  .pos-modern .customer-picker-section {
+    margin-top: 18px;
+  }
+
+  .pos-modern .customer-picker-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #475569;
+  }
+
+  .pos-modern .customer-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 10px;
+  }
+
+  .pos-modern .customer-picker-card {
+    width: 100%;
+    border-radius: 16px;
+    padding: 14px 15px;
+    text-align: left;
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+  }
+
+  .pos-modern .customer-picker-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 10px;
+  }
+
+  .pos-modern .customer-picker-badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 4px 8px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .pos-modern .customer-picker-badge.is-favorite {
+    background: #fff7ed;
+    color: #c2410c;
+  }
+
+  .pos-modern .customer-picker-badge.is-term {
+    background: #ecfeff;
+    color: #0f766e;
+  }
+
+  .pos-modern .customer-picker-empty {
+    padding: 20px 16px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 16px;
+    color: #64748b;
+    background: #fff;
+    text-align: center;
+  }
+
+  .pos-modern .customer-picker-footer {
+    padding: 12px 20px 18px;
+    border-top: 1px solid #e2e8f0;
+    background: rgba(255, 255, 255, 0.96);
+  }
+
+  @media (max-width: 767.98px) {
+    .pos-modern .customer-field-actions {
+      flex-direction: column;
+    }
+
+    .pos-modern .btn-customer-picker {
+      width: 100%;
+    }
+
+    .pos-modern .customer-picker-header,
+    .pos-modern .customer-picker-search,
+    .pos-modern .customer-picker-body,
+    .pos-modern .customer-picker-footer {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+
+    .pos-modern .customer-picker-grid {
+      grid-template-columns: 1fr;
+    }
+  }
 </style>
 <?= $this->endSection() ?>
 
@@ -1385,21 +1597,26 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
             <div id="checkout-hidden-items"></div>
 
             <div class="form-group">
-              <label for="customer_search_input">Pelanggan</label>
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <label for="customer_search_input" class="mb-0">Pelanggan</label>
+                <!-- <button type="button" class="btn btn-outline-primary btn-sm btn-customer-picker" id="btn-open-customer-picker">
+                  <i class="fas fa-user-check mr-1"></i> Pilih Cepat
+                </button> -->
+              </div>
               <div class="customer-live-search" style="position:relative;">
-                <input type="text" id="customer_search_input" name="customer_name" class="form-control" placeholder="Cari pelanggan atau ketik nama baru..." autocomplete="off">
+                <div class="customer-field-actions">
+                  <input type="text" id="customer_search_input" name="customer_name" class="form-control" placeholder="Cari pelanggan atau ketik nama baru..." autocomplete="off">
+                  <button type="button" class="btn btn-outline-secondary btn-customer-picker" id="btn-open-customer-picker-inline">
+                    <i class="fas fa-th-large mr-1"></i> Semua
+                  </button>
+                </div>
                 <input type="hidden" id="customer_id" name="customer_id" value="">
                 <input type="hidden" id="customer_selected_name" value="">
                 <input type="hidden" id="customer_selected_term" value="30">
+                <input type="hidden" id="credit_term" name="credit_term" value="30">
                 <div id="customer_search_results" class="list-group" style="position:absolute;top:100%;left:0;right:0;z-index:1050;display:none;max-height:220px;overflow-y:auto;box-shadow:0 8px 24px rgba(0,0,0,0.12);border-radius:0 0 10px 10px;background:#fff;border:1px solid #d8e1ea;border-top:none;"></div>
               </div>
               <small class="form-text text-muted">Ketik nama pelanggan lalu pilih hasil pencarian jika ada. Nama baru akan otomatis ditambahkan ke master pelanggan. Wajib untuk metode bayar Kredit.</small>
-            </div>
-
-            <div class="form-group">
-              <label for="credit_term">Termin Kredit (hari)</label>
-              <input type="number" id="credit_term" name="credit_term" class="form-control" value="30" min="0" step="1">
-              <small class="form-text text-muted">Gunakan 7, 14, 30, atau sesuai kesepakatan.</small>
             </div>
 
             <div class="form-group">
@@ -1447,6 +1664,44 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
   </button>
 
   <div class="cart-drawer-backdrop" id="cart-drawer-backdrop"></div>
+</div>
+
+<div class="modal fade pos-modern customer-picker-modal" id="customerPickerModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="customer-picker-header">
+        <div class="d-flex align-items-start justify-content-between">
+          <div>
+            <h4 class="mb-1">Pilih Pelanggan</h4>
+            <p class="mb-0 text-muted">Touch-friendly picker untuk pelanggan umum, terakhir, favorit, atau cari nama pelanggan lain.</p>
+          </div>
+          <button type="button" class="close" data-dismiss="modal" aria-label="Close" style="font-size:28px;line-height:1;">
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+      </div>
+      <div class="customer-picker-search">
+        <input type="text" id="customer-picker-search-input" class="form-control" placeholder="Cari nama atau nomor telepon pelanggan...">
+      </div>
+      <div class="customer-picker-body">
+        <div class="customer-picker-section">
+          <div class="customer-picker-section-title">Shortcut Cepat</div>
+          <div class="customer-picker-grid" id="customer-picker-shortcuts"></div>
+        </div>
+        <div class="customer-picker-section">
+          <div class="customer-picker-section-title">
+            <span>Hasil Pencarian</span>
+            <small class="text-muted">Tap untuk memilih pelanggan</small>
+          </div>
+          <div class="customer-picker-grid" id="customer-picker-results"></div>
+        </div>
+      </div>
+      <div class="customer-picker-footer d-flex justify-content-between align-items-center flex-wrap" style="gap:10px;">
+        <small class="text-muted mb-0">Nama baru tetap bisa diketik manual di field pelanggan jika belum ada di daftar.</small>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Tutup</button>
+      </div>
+    </div>
+  </div>
 </div>
 
 <div class="modal fade pos-modern" id="pendingTransactionsModal" tabindex="-1" role="dialog" aria-hidden="true">
@@ -1668,6 +1923,9 @@ $nextInvoiceNo = isset($nextInvoiceNo) ? (string) $nextInvoiceNo : '-';
 
 <?php $this->section('page_js') ?>
 <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script>
+window.POS_BOOTSTRAP = <?= json_encode($customerBootstrap, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
+</script>
 <script src="<?= base_url('assets/js/pos/namespace.js') ?>"></script>
 <script src="<?= base_url('assets/js/pos/modules/logic.js') ?>"></script>
 <script src="<?= base_url('assets/js/pos/modules/bindings.js') ?>"></script>
