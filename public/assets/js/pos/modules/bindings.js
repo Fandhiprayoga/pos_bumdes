@@ -52,7 +52,7 @@
       if (removeBtn) {
         actions.removeItem(Number(removeBtn.dataset.id));
       }
-    }
+    });
 
     if (dom.categoryFilter) {
       dom.categoryFilter.addEventListener('change', actions.filterCards);
