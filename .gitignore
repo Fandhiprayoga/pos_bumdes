@@ -125,3 +125,4 @@ _modules/*
 /results/
 /phpunit*.xml
 public/uploads/products/
+db_/*
