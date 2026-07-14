@@ -61,6 +61,7 @@ $routes->group('', ['filter' => 'session'], static function ($routes) {
     // Receivables
     $routes->get('receivables', 'ReceivableController::index', ['filter' => 'permission:receivables.view']);
     $routes->get('receivables/(:num)', 'ReceivableController::detail/$1', ['filter' => 'permission:receivables.view']);
+    $routes->get('receivables/payments', 'ReceivablePaymentController::index', ['filter' => 'permission:receivables.view']);
     $routes->post('receivables/(:num)/payments', 'ReceivablePaymentController::store/$1', ['filter' => 'permission:receivables.collect']);
 
     // ---------------------------------------------------------------

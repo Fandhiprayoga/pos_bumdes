@@ -42,6 +42,12 @@ function isDropdownActive(array $paths): string {
       </li>
       <?php endif; ?>
 
+      <?php if (activeGroupCan('receivables.view')): ?>
+      <li class="<?= isMenuActive('receivables/payments') ? 'active' : '' ?>">
+        <a class="nav-link" href="<?= base_url('receivables/payments') ?>"><i class="fas fa-wallet"></i> <span>Pembayaran Piutang</span></a>
+      </li>
+      <?php endif; ?>
+
       <?php if (activeGroupCan('sales.create')): ?>
       <li class="<?= isMenuActive('pos/shift') ?>">
         <a class="nav-link" href="<?= base_url('pos/shift') ?>"><i class="fas fa-door-open"></i> <span>Buka / Tutup Shift</span></a>

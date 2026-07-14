@@ -124,6 +124,7 @@ class AuthGroups extends ShieldAuthGroups
             'customers.*',
             'sales.*',
             'shifts.*',
+            'receivables.*',
         ],
         'admin' => [
             'admin.access',
@@ -155,6 +156,7 @@ class AuthGroups extends ShieldAuthGroups
             'sales.create',
             'sales.list',
             'receivables.view',
+            'receivables.collect',
             'shifts.open',
             'shifts.close',
             'products.list',

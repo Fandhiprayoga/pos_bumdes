@@ -85,7 +85,8 @@
     favoriteCustomers: [],
     customerPickerResults: [],
     isMac: /Mac|iPhone|iPad|iPod/i.test(navigator.platform || ''),
-    modKeyLabel: /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '') ? 'Cmd' : 'Ctrl'
+    modKeyLabel: /Mac|iPhone|iPad|iPod/i.test(navigator.platform || '') ? 'Cmd' : 'Ctrl',
+    lastPaymentMethod: dom.paymentMethodSelect ? String(dom.paymentMethodSelect.value || 'cash') : 'cash'
   };
 
   // ------------------------------------------------------------
@@ -737,13 +738,17 @@
 
     if (method === 'credit') {
       const current = getAmountPaidNumber();
-      const safeValue = Math.min(current, summary.grandTotal);
+      const safeValue = state.lastPaymentMethod !== 'credit'
+        ? 0
+        : Math.min(current, summary.grandTotal);
       if (dom.amountPaidValueInput) {
         dom.amountPaidValueInput.value = String(safeValue);
       }
       syncAmountPaidDisplay(false);
       renderSummary();
     }
+
+    state.lastPaymentMethod = method;
   }
 
   function buildPendingRequestFormData() {

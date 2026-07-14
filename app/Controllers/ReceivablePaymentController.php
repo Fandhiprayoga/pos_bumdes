@@ -21,6 +21,72 @@ class ReceivablePaymentController extends BaseController
         $this->saleModel = new SaleModel();
     }
 
+    public function index()
+    {
+        $status = trim((string) ($this->request->getGet('status') ?? 'open'));
+        $customerId = (int) ($this->request->getGet('customer_id') ?? 0);
+        $keyword = trim((string) ($this->request->getGet('q') ?? ''));
+
+        $query = $this->receivableModel
+            ->select('receivables.*, sales.invoice_no, sales.customer_name, sales.payment_method, customers.name as customer_label')
+            ->join('sales', 'sales.id = receivables.sale_id', 'left')
+            ->join('customers', 'customers.id = receivables.customer_id', 'left')
+            ->whereIn('receivables.status', ['open', 'partial', 'overdue'])
+            ->orderBy('receivables.due_date', 'ASC')
+            ->orderBy('receivables.id', 'DESC');
+
+        if ($status !== '' && $status !== 'all') {
+            $query->where('receivables.status', $status);
+        }
+
+        if ($customerId > 0) {
+            $query->where('receivables.customer_id', $customerId);
+        }
+
+        if ($keyword !== '') {
+            $query->groupStart()
+                ->like('sales.invoice_no', $keyword)
+                ->orLike('customers.name', $keyword)
+                ->orLike('sales.customer_name', $keyword)
+                ->groupEnd();
+        }
+
+        $rows = $query->findAll();
+
+        $summary = [
+            'total_receivables' => count($rows),
+            'total_outstanding' => 0.0,
+            'total_due_today' => 0.0,
+        ];
+
+        $today = date('Y-m-d');
+        foreach ($rows as $row) {
+            $outstanding = (float) ($row['outstanding'] ?? 0);
+            $summary['total_outstanding'] += $outstanding;
+
+            if ((string) ($row['due_date'] ?? '') === $today) {
+                $summary['total_due_today'] += $outstanding;
+            }
+        }
+
+        return $this->renderView('receivables/payments', [
+            'title' => 'Pembayaran Piutang',
+            'page_title' => 'Pembayaran Piutang',
+            'receivables' => $rows,
+            'summary' => $summary,
+            'filters' => [
+                'status' => $status,
+                'customer_id' => $customerId,
+                'q' => $keyword,
+            ],
+            'statusOptions' => ['all', 'open', 'partial', 'overdue'],
+            'customers' => (new \App\Models\CustomerModel())
+                ->where('is_active', 1)
+                ->orderBy('name', 'ASC')
+                ->findAll(),
+        ]);
+    }
+
     public function store(int $receivableId)
     {
         $expectsJson = $this->request->isAJAX() || strtolower(trim((string) ($this->request->getGet('format') ?? ''))) === 'json';
