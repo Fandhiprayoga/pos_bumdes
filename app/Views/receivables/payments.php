@@ -324,3 +324,31 @@ $statusBadgeClass = static function (string $status): string {
 </div>
 
 <?= $modalHtml ?>
+
+<?php $this->section('page_js') ?>
+<script>
+(function() {
+  var paymentModals = document.querySelectorAll('.modal[id^="payModal"]');
+
+  paymentModals.forEach(function(modal) {
+    if (modal.parentElement !== document.body) {
+      document.body.appendChild(modal);
+    }
+  });
+
+  if (typeof window.jQuery === 'undefined') {
+    return;
+  }
+
+  window.jQuery(document).on('shown.bs.modal', '.modal[id^="payModal"]', function() {
+    var modalZIndex = 1060;
+    this.style.zIndex = String(modalZIndex);
+
+    var backdrops = document.querySelectorAll('.modal-backdrop');
+    if (backdrops.length > 0) {
+      backdrops[backdrops.length - 1].style.zIndex = String(modalZIndex - 10);
+    }
+  });
+})();
+</script>
+<?= $this->endSection() ?>

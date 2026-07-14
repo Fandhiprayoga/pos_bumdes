@@ -70,7 +70,7 @@ function isDropdownActive(array $paths): string {
       <?php endif; ?>
 
       <?php if (activeGroupCan('receivables.view')): ?>
-      <li class="<?= isMenuActive('receivables') ?>">
+      <li class="<?= str_starts_with($currentUrl, 'receivables') && !str_starts_with($currentUrl, 'receivables/payments') ? 'active' : '' ?>">
         <a class="nav-link" href="<?= base_url('receivables') ?>"><i class="fas fa-file-invoice-dollar"></i> <span>Piutang</span></a>
       </li>
       <?php endif; ?>
